@@ -1,86 +1,91 @@
-set nocompatible              " be iMproved, required
-filetype off                  " required
+call plug#begin('~/.vim/plugged')
+Plug 'ctrlpvim/ctrlp.vim'
+Plug 'fatih/vim-go'
+Plug 'mileszs/ack.vim'
+Plug 'doums/darcula'
+Plug 'scrooloose/nerdtree'
+Plug 'mdempsky/gocode', { 'rtp': 'vim', 'do': '~/.vim/plugged/gocode/vim/symlink.sh' }
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
+Plug 'jlanzarotta/bufexplorer'
+Plug 'tpope/vim-fugitive'
+Plug 'chrisbra/Colorizer'
+call plug#end()
 
-" set the runtime path to include Vundle and initialize
-set rtp+=~/.vim/bundle/Vundle.vim
-call vundle#begin()
-" alternatively, pass a path where Vundle should install plugins
-"call vundle#begin('~/some/path/here')
-" let Vundle manage Vundle, required
-Plugin 'gmarik/Vundle.vim'
-Plugin 'altercation/vim-colors-solarized'
-Plugin 'jlanzarotta/bufexplorer'
-Plugin 'mileszs/ack.vim'
-Plugin 'kien/ctrlp.vim'
-Plugin 'airblade/vim-gitgutter'
-Plugin 'dmeybohm/vim-tinyfileutils'
-Plugin 'freitass/todo.txt-vim'
-Plugin 'tpope/vim-fugitive'
-Plugin 'trashhalo/jshint.vim'
-Plugin 'danro/rename.vim'
-Plugin 'bronson/vim-trailing-whitespace'
-Plugin 'jelera/vim-javascript-syntax'
-Plugin 'vim-scripts/JavaScript-Indent'
-Plugin 'FelikZ/ctrlp-py-matcher'
-Plugin 'rking/ag.vim'
-Plugin 'vim-scripts/highlight.vim'
-Plugin 'scrooloose/nerdtree'
-Plugin 'chriskempson/base16-vim'
-Plugin 'git://github.com/vim-scripts/matchit.zip'
-Plugin 'git://github.com/kana/vim-textobj-user.git'
-Plugin 'git://github.com/vim-scripts/ruby-matchit.git'
-Plugin 'git://github.com/nelstrom/vim-textobj-rubyblock.git'
-Plugin 'https://github.com/kana/vim-textobj-indent.git'
-Plugin 'https://github.com/nunun/vim-textobj-function.git'
-Plugin 'guns/vim-clojure-static'
+set background=dark
+colorscheme neuromancer
 
-" All of your Plugins must be added before the following line
-call vundle#end()  
-filetype plugin indent on    " required
-set backspace=indent,eol,start
-set timeoutlen=1000 ttimeoutlen=0
 noremap <Up> <NOP>
 noremap <Down> <NOP>
 noremap <Left> <NOP>
 noremap <Right> <NOP>
-set tabstop=4
-set shiftwidth=4
-set expandtab
-au FileType ruby setl sw=2 sts=2 et
-au FileType scss setl sw=2 sts=2 et
-au BufRead,BufNewFile *.es6 let b:jshintrc_file=getcwd() . "/.jshintrc.es6"
-au BufRead,BufNewFile *.es6 setfiletype javascript
-let mapleader = ","
-syntax on
-set background=dark
 
-if has("unix")
-  let s:uname = system("uname -s")
-  if s:uname == "Darwin\n"
-      nnoremap ∆ :wincmd j<CR>
-      nnoremap ¬ :wincmd l<CR>
-      nnoremap ˚ :wincmd k<CR>
-      nnoremap ˙ :wincmd h<CR>
-  else
-      nnoremap ê :wincmd j<CR>
-      nnoremap ì :wincmd l<CR>
-      nnoremap ë :wincmd k<CR>
-      nnoremap è :wincmd h<CR>
-  endif
+if has("gui_running")
+	set guioptions-=m  "remove menu bar
+	set guioptions-=T  "remove toolbar
+	set guioptions-=r  "remove right-hand scroll bar
+	set guioptions-=L  "remove left-hand scroll bar
+	set guifont=Victor\ Mono\ 12
+endif
+
+let mapleader=","
+
+filetype off                    " Reset filetype detection first ...
+filetype plugin indent on       " ... and enable filetype detection
+filetype plugin on
+set nocompatible                " Enables us Vim specific features
+set ttyfast                     " Indicate fast terminal conn for faster redraw
+set ttymouse=xterm2             " Indicate terminal type for mouse codes
+set ttyscroll=3                 " Speedup scrolling
+set laststatus=2                " Show status line always
+set encoding=utf-8              " Set default encoding to UTF-8
+set autoread                    " Automatically read changed files
+set autoindent                  " Enabile Autoindent
+set backspace=indent,eol,start  " Makes backspace key more powerful.
+set incsearch                   " Shows the match while typing
+set hlsearch                    " Highlight found searches
+set noerrorbells                " No beeps
+set nu rnu                      " Show relative line numbers
+set showcmd                     " Show me what I'm typing
+set noswapfile                  " Don't use swapfile
+set nobackup                    " Don't create annoying backup files
+set splitright                  " Vertical windows should be split to right
+set splitbelow                  " Horizontal windows should split to bottom
+set autowrite                   " Automatically save before :next, :make etc.
+set hidden                      " Buffer should still exist if window is closed
+set fileformats=unix,dos,mac    " Prefer Unix over Windows over OS 9 formats
+set noshowmatch                 " Do not show matching brackets by flickering
+set noshowmode                  " We show the mode with airline or lightline
+set ignorecase                  " Search case insensitive...
+set smartcase                   " ... but not it begins with upper case
+set completeopt=menu,menuone    " Show popup menu, even if there is one entry
+set pumheight=10                " Completion window max size
+set nocursorcolumn              " Do not highlight column (speeds up highlighting)
+set lazyredraw                  " Wait to redraw
+set nowrap
+
+if executable('ag')
+  let g:ackprg = 'ag --vimgrep'
 endif
 
 nnoremap <leader>` :BufExplorer<CR>
-noremap <C-n> :normal viw"_dP<CR>
-noremap <C-y> :normal my^"*y$`y<CR>
-colorscheme base16-bright
-set exrc
+let g:go_highlight_operators    = 1
+let g:go_highlight_functions    = 1
+let g:go_highlight_methods      = 1
+let g:go_highlight_types        = 1
+let g:go_highlight_fields       = 1
+let g:go_highlight_variable_declarations = 1
+let g:go_fmt_command            = "goimports"
 
-let g:ctrlp_match_func = { 'match': 'pymatcher#PyMatch' }
-let g:ctrlp_user_command = 'ag %s -i --nocolor --nogroup --hidden
-      \ --ignore .git
-      \ --ignore .svn
-      \ --ignore .hg
-      \ --ignore node_modules
-      \ --ignore .DS_Store
-      \ --ignore "**/*.pyc"
-      \ -g ""'
+inoremap <silent><expr> <c-space> coc#refresh()
+inoremap <silent><expr> <TAB>
+      \ pumvisible() ? "\<C-n>" :
+      \ <SID>check_back_space() ? "\<TAB>" :
+      \ coc#refresh()
+inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
+
+function! s:check_back_space() abort
+  let col = col('.') - 1
+  return !col || getline('.')[col - 1]  =~# '\s'
+endfunction
+
+inoremap <expr> <cr> pumvisible() ? "\<C-y>" : "\<C-g>u\<CR>"
