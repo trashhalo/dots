@@ -2,13 +2,13 @@ call plug#begin('~/.vim/plugged')
 Plug 'ctrlpvim/ctrlp.vim'
 Plug 'fatih/vim-go'
 Plug 'mileszs/ack.vim'
-Plug 'doums/darcula'
 Plug 'scrooloose/nerdtree'
 Plug 'mdempsky/gocode', { 'rtp': 'vim', 'do': '~/.vim/plugged/gocode/vim/symlink.sh' }
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'jlanzarotta/bufexplorer'
 Plug 'tpope/vim-fugitive'
 Plug 'chrisbra/Colorizer'
+Plug 'trashhalo/neuromancer.vim'
 call plug#end()
 
 set background=dark
@@ -25,6 +25,9 @@ if has("gui_running")
 	set guioptions-=r  "remove right-hand scroll bar
 	set guioptions-=L  "remove left-hand scroll bar
 	set guifont=Victor\ Mono\ 12
+else
+	set t_Co=256
+	set termguicolors
 endif
 
 let mapleader=","
@@ -44,7 +47,6 @@ set backspace=indent,eol,start  " Makes backspace key more powerful.
 set incsearch                   " Shows the match while typing
 set hlsearch                    " Highlight found searches
 set noerrorbells                " No beeps
-set nu rnu                      " Show relative line numbers
 set showcmd                     " Show me what I'm typing
 set noswapfile                  " Don't use swapfile
 set nobackup                    " Don't create annoying backup files
@@ -61,7 +63,6 @@ set completeopt=menu,menuone    " Show popup menu, even if there is one entry
 set pumheight=10                " Completion window max size
 set nocursorcolumn              " Do not highlight column (speeds up highlighting)
 set lazyredraw                  " Wait to redraw
-set nowrap
 
 if executable('ag')
   let g:ackprg = 'ag --vimgrep'
@@ -72,7 +73,7 @@ let g:go_highlight_operators    = 1
 let g:go_highlight_functions    = 1
 let g:go_highlight_methods      = 1
 let g:go_highlight_types        = 1
-let g:go_highlight_fields       = 1
+let g:go_highlight_fields       = 0
 let g:go_highlight_variable_declarations = 1
 let g:go_fmt_command            = "goimports"
 
