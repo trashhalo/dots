@@ -69,6 +69,9 @@ if executable('ag')
 endif
 
 nnoremap <leader>` :BufExplorer<CR>
+nnoremap <leader>n :NERDTreeToggle<CR>
+nnoremap <leader>f :Ack <C-r><C-w><CR>
+
 let g:go_highlight_operators    = 1
 let g:go_highlight_functions    = 1
 let g:go_highlight_methods      = 1
@@ -76,6 +79,7 @@ let g:go_highlight_types        = 1
 let g:go_highlight_fields       = 0
 let g:go_highlight_variable_declarations = 1
 let g:go_fmt_command            = "goimports"
+let g:go_metalinter_autosave = 1
 
 inoremap <silent><expr> <c-space> coc#refresh()
 inoremap <silent><expr> <TAB>
