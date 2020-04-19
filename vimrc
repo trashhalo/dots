@@ -1,7 +1,7 @@
 call plug#begin('~/.vim/plugged')
-Plug 'ctrlpvim/ctrlp.vim'
 Plug 'fatih/vim-go'
-Plug 'mileszs/ack.vim'
+Plug 'Yggdroot/LeaderF'
+Plug 'jremmen/vim-ripgrep'
 Plug 'scrooloose/nerdtree'
 Plug 'mdempsky/gocode', { 'rtp': 'vim', 'do': '~/.vim/plugged/gocode/vim/symlink.sh' }
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
@@ -13,6 +13,10 @@ Plug 'majutsushi/tagbar'
 Plug 'SirVer/ultisnips'
 Plug 'mtth/scratch.vim'
 Plug 'tpope/vim-abolish'
+Plug 'editorconfig/editorconfig-vim'
+Plug 'sheerun/vim-polyglot'
+Plug 'trashhalo/MatchTag'
+Plug 'chrisbra/csv.vim'
 call plug#end()
 
 set background=dark
@@ -67,7 +71,7 @@ set completeopt=menu,menuone    " Show popup menu, even if there is one entry
 set pumheight=10                " Completion window max size
 set nocursorcolumn              " Do not highlight column (speeds up highlighting)
 set lazyredraw                  " Wait to redraw
-set synmaxcol=128
+set synmaxcol=500
 syntax sync minlines=256
 
 if executable('ag')
@@ -76,9 +80,9 @@ endif
 
 nnoremap <leader>` :BufExplorer<CR>
 nnoremap <leader>n :NERDTreeToggle<CR>
-nnoremap <leader>f :Ack <C-r><C-w><CR>
 nnoremap <leader>i :GoInfo<CR>
 nnoremap <leader>p "+p
+nnoremap <leader>f :Rg <C-r><C-w><CR>
 :command SnipList :call UltiSnips#ListSnippets()
 :command SmallMonitor set guifont=Victor\ Mono\ 12
 :command BigMonitor set guifont=Victor\ Mono\ 14
@@ -145,3 +149,4 @@ let g:tagbar_type_go = {
 	\ 'ctagsargs' : '-sort -silent'
 \ }
 
+let g:Lf_ShortcutF = '<C-P>'
