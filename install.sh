@@ -1,13 +1,9 @@
+#!/bin/bash
 if ! command -v just &> /dev/null
 then
-    echo "just command not found, installing..."
-    git clone https://mpr.makedeb.org/just
-    pushd just
-    makedeb -si
-    sudo dpkg -i just_*_amd64.deb
-    popd
+    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to $(pwd)
 else
     echo "just command found, skipping installation"
 fi
 
-just install
+./just install

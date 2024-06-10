@@ -23,8 +23,9 @@ neovim:
         ninja-build \
         gettext \
         cmake \
-        unzip \ 
-        curl
+        unzip \
+        curl \
+        build-essential
     git clone https://github.com/neovim/neovim
     pushd neovim
     git checkout stable
@@ -40,8 +41,15 @@ tmux:
 config:
     #!/bin/env bash
     mkdir -p ~/.config/nvim
-    ln -s $(CURDIR)/config/init.vim ~/.config/nvim/init.vim
+    ln -s {{justfile_directory()}}/config/init.lua ~/.config/nvim/init.lua
     mkdir -p ~/.config/tmux
-    ln -s $(CURDIR)/config/tmux.conf ~/.config/tmux/tmux.conf
+    ln -s {{justfile_directory()}}/config/tmux.conf ~/.config/tmux/tmux.conf
 
 install: elixir_ls lua_ls neovim tmux config
+
+uninstall:
+    rm -rf ~/.elixir-ls
+    rm -rf ~/.lua-ls
+    rm -rf ~/.config/nvim
+    rm -rf ~/.config/tmux
+    rm -rf {{justfile_directory()}}/neovim
