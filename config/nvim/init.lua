@@ -1,6 +1,9 @@
-vim.g.mapleader = "`"         -- using tick as leader key
+vim.g.mapleader = ","         -- using tick as leader key
 vim.opt.cursorline = true     -- enable cursorline
 vim.opt.relativenumber = true -- enable relative number
+vim.opt.background = "light"  -- set background to light
+vim.g.notimeout = true
+vim.g.nottimeout = true
 
 -- bootstrap lazy.nvim plugin manager
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -15,6 +18,37 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+local changed_on_branch = function()
+	local previewers = require("telescope.previewers")
+	local pickers = require("telescope.pickers")
+	local sorters = require("telescope.sorters")
+	local finders = require("telescope.finders")
+	pickers
+	    .new({}, {
+		    results_title = "Modified in current branch",
+		    finder = finders.new_oneshot_job({
+			    "git",
+			    "diff",
+			    "--name-only",
+			    "--diff-filter=ACMR",
+			    "origin...",
+		    }, {}),
+		    sorter = sorters.get_fuzzy_file(),
+		    previewer = previewers.new_termopen_previewer({
+			    get_command = function(entry)
+				    return {
+					    "git",
+					    "diff",
+					    "--diff-filter=ACMR",
+					    "origin...",
+					    "--",
+					    entry.value,
+				    }
+			    end,
+		    }),
+	    })
+	    :find()
+end
 
 require("lazy").setup({
 	{
@@ -75,7 +109,8 @@ require("lazy").setup({
 			"nvim-lua/plenary.nvim",
 			"nvim-treesitter/nvim-treesitter",
 			"nvim-tree/nvim-web-devicons",
-			"smartpde/telescope-recent-files"
+			"smartpde/telescope-recent-files",
+			"folke/trouble.nvim"
 		},
 		config = function()
 			require("telescope").setup({
@@ -87,7 +122,13 @@ require("lazy").setup({
 						case_mode = "smart_case", -- or "ignore_case" or "respect_case"
 						-- the default case_mode is "smart_case"
 					}
-				}
+				},
+				defaults = {
+					mappings = {
+						i = { ["<c-t>"] = require('trouble.sources.telescope').open },
+						n = { ["<c-t>"] = require('trouble.sources.telescope').open },
+					},
+				},
 			})
 
 			-- To get fzf loaded and working with telescope, you need to call
@@ -115,8 +156,8 @@ require("lazy").setup({
 				enabled = true,
 				auto_trigger = true,
 				keymap = {
-					accept = "<leader>j",
-					accept_line = "<leader>l",
+					accept = "<leader>cj",
+					accept_line = "<leader>cl",
 				}
 			},
 			panel = {
@@ -133,11 +174,11 @@ require("lazy").setup({
 			local elixirls = require("elixir.elixirls")
 
 			elixir.setup {
-				nextls = { enable = true, spitfire = true },
-				credo = {},
+				nextls = { enable = false },
+				credo = { enable = true },
 				elixirls = {
 					enable = true,
-					cmd = "/home/vscode/.elixir_ls/language_server.sh",
+					cmd = "/home/vscode/.elixir-ls/language_server.sh",
 					settings = elixirls.settings {
 						dialyzerEnabled = false,
 						enableTestLenses = false,
@@ -168,12 +209,12 @@ require("lazy").setup({
 		end,
 	},
 	{
-		"folke/tokyonight.nvim",
+		"savq/melange-nvim",
 		lazy = false,
 		priority = 1000,
 		config = function()
 			vim.o.termguicolors = true
-			vim.cmd([[colorscheme tokyonight-day]])
+			vim.cmd([[colorscheme melange]])
 		end
 	},
 	{
@@ -214,7 +255,8 @@ require("lazy").setup({
 			"nvim-tree/nvim-web-devicons",
 		},
 		keys = {
-			{ "<leader>n", "<cmd>NvimTreeToggle<cr>" },
+			{ "<leader>nn", "<cmd>NvimTreeToggle<cr>", desc = "Toggle Sidebar (NvimTree)" },
+			{ "<leader>nf", "<cmd>NvimFindFile<cr>",   desc = "Find File (NvimTree)" }
 		}
 	},
 	"nvim-tree/nvim-web-devicons",
@@ -223,19 +265,96 @@ require("lazy").setup({
 		opts = {
 			custom_filetypes = { "heex", "elixir", "eelixir" },
 		}
+	},
+	{
+		"nvim-pack/nvim-spectre",
+		keys = {
+			{ "<leader>sr", function() require("spectre").open() end,                              desc = "Search and Replace (Spectre)" },
+			{ "<leader>sw", function() require("spectre").open_visual({ select_word = true }) end, "n",                                  desc = "Search current word (Spectre)" },
+			{ "<leader>sw", function() require("spectre").open_visual({ select_word = true }) end, "v",                                  desc = "Search current word (Spectre)" },
+
+		},
+	},
+	{
+		"folke/trouble.nvim",
+		opts = {}, -- for default options, refer to the configuration section for custom setup.
+		cmd = "Trouble",
+		keys = {
+			{
+				"<leader>xx",
+				"<cmd>Trouble diagnostics toggle<cr>",
+				desc = "Diagnostics (Trouble)",
+			},
+			{
+				"<leader>xX",
+				"<cmd>Trouble diagnostics toggle filter.buf=0<cr>",
+				desc = "Buffer Diagnostics (Trouble)",
+			},
+			{
+				"<leader>xs",
+				"<cmd>Trouble symbols toggle focus=false<cr>",
+				desc = "Symbols (Trouble)",
+			},
+			{
+				"<leader>xl",
+				"<cmd>Trouble lsp toggle focus=false win.position=right<cr>",
+				desc = "LSP Definitions / references / ... (Trouble)",
+			},
+			{
+				"<leader>xL",
+				"<cmd>Trouble loclist toggle<cr>",
+				desc = "Location List (Trouble)",
+			},
+			{
+				"<leader>xq",
+				"<cmd>Trouble qflist toggle<cr>",
+				desc = "Quickfix List (Trouble)",
+			},
+		},
+	},
+	{
+		"folke/which-key.nvim",
+		event = "VeryLazy",
+		init = function()
+			vim.o.timeout = true
+			vim.o.timeoutlen = 300
+		end,
+		opts = {},
+		config = function()
+			local wk = require("which-key")
+			wk.register({
+				["<leader>"] = {
+					name = "Leader",
+					["j"] = {
+						name = "Jump"
+					},
+					["x"] = {
+						name = "Trouble"
+					},
+					["c"] = {
+						name = "Copilot",
+					},
+					["n"] = {
+						name = "NvimTree",
+					},
+					["s"] = {
+						name = "Spectre",
+					},
+				},
+			})
+		end,
 	}
 })
 local builtin = require('telescope.builtin')
-vim.keymap.set('n', '<C-p>', builtin.git_files, {})
-vim.keymap.set('n', '<leader>p', function()
+vim.keymap.set('n', '<leader>jp', builtin.find_files, { desc = "Find Files (Telescope)" })
+vim.keymap.set('n', '<leader>jg', builtin.git_status, { desc = "Git Status (Telescope)" })
+vim.keymap.set('n', '<leader>jk', builtin.keymaps, { desc = "Keymaps (Telescope)" })
+vim.keymap.set('n', '<leader>jm', function()
 	builtin.lsp_document_symbols({ symbols = { "Function", "Method", "Field", "Variable" } })
-end, {})
-vim.keymap.set('n', '<C-b>', builtin.find_files, {})
-vim.keymap.set('n', '<C-g>', builtin.lsp_document_symbols, {})
-vim.keymap.set('n', '<leader>td', builtin.diagnostics, {})
-vim.keymap.set('n', '<leader>gs', builtin.grep_string, {})
-vim.keymap.set('n', '<leader>gg', builtin.live_grep, {})
-vim.keymap.set("n", "gd", function() vim.lsp.buf.definition() end, {})
+end, { desc = "Document Symbols (Telescope)" })
+vim.keymap.set('n', '<leader>jb', changed_on_branch, { desc = "Changed on Branch (Telescope)" })
+vim.keymap.set('n', '<leader>jc', builtin.commands, { desc = "Commands (Telescope)" })
+vim.keymap.set("n", "gd", function() vim.lsp.buf.definition() end, { desc = "Go to Definition (LSP)" })
 vim.api.nvim_set_keymap("n", "<Leader><Leader>",
 	[[<cmd>lua require('telescope').extensions.recent_files.pick()<CR>]],
-	{ noremap = true, silent = true })
+	{ noremap = true, silent = true, desc = "Recent Files (Telescope)" })
