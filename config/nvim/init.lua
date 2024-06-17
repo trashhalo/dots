@@ -29,6 +29,7 @@ local changed_on_branch = function()
 		    finder = finders.new_oneshot_job({
 			    "git",
 			    "diff",
+			    "--relative",
 			    "--name-only",
 			    "--diff-filter=ACMR",
 			    "origin...",
@@ -277,7 +278,9 @@ require("lazy").setup({
 	},
 	{
 		"folke/trouble.nvim",
-		opts = {}, -- for default options, refer to the configuration section for custom setup.
+		opts = {
+			auto_jump = true
+		},
 		cmd = "Trouble",
 		keys = {
 			{
@@ -309,7 +312,7 @@ require("lazy").setup({
 				"<leader>xq",
 				"<cmd>Trouble qflist toggle<cr>",
 				desc = "Quickfix List (Trouble)",
-			},
+			}
 		},
 	},
 	{
@@ -354,7 +357,11 @@ vim.keymap.set('n', '<leader>jm', function()
 end, { desc = "Document Symbols (Telescope)" })
 vim.keymap.set('n', '<leader>jb', changed_on_branch, { desc = "Changed on Branch (Telescope)" })
 vim.keymap.set('n', '<leader>jc', builtin.commands, { desc = "Commands (Telescope)" })
-vim.keymap.set("n", "gd", function() vim.lsp.buf.definition() end, { desc = "Go to Definition (LSP)" })
+local trouble = require("trouble")
+vim.keymap.set("n", "gd", function() trouble.open({ mode = "lsp_definitions" }) end,
+	{ desc = "LSP Definitions (Trouble)" })
+vim.keymap.set("n", "gi", function() trouble.open({ mode = "lsp_implementations" }) end,
+	{ desc = "LSP Implementations (Trouble)" })
 vim.api.nvim_set_keymap("n", "<Leader><Leader>",
 	[[<cmd>lua require('telescope').extensions.recent_files.pick()<CR>]],
 	{ noremap = true, silent = true, desc = "Recent Files (Telescope)" })
