@@ -3,6 +3,11 @@ vim.opt.relativenumber = true -- enable relative number
 vim.opt.background = "light"  -- set background to light
 vim.g.notimeout = true
 vim.g.nottimeout = true
+local capabilities = vim.lsp.protocol.make_client_capabilities()
+capabilities.textDocument.foldingRange = {
+	dynamicRegistration = false,
+	lineFoldingOnly = true,
+}
 
 -- bootstrap lazy.nvim plugin manager
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -361,6 +366,23 @@ require("lazy").setup({
 						}
 					}
 				}
+			}
+			lspconfig.yamlls.setup {
+				capabilities = capabilities,
+				settings = {
+					yaml = {
+						schemas = {
+							kubernetes = "k8s-*.yaml",
+							["http://json.schemastore.org/github-workflow"] = ".github/workflows/*",
+							["http://json.schemastore.org/github-action"] = ".github/action.{yml,yaml}",
+							["http://json.schemastore.org/ansible-stable-2.9"] = "roles/tasks/**/*.{yml,yaml}",
+							["http://json.schemastore.org/prettierrc"] = ".prettierrc.{yml,yaml}",
+							["http://json.schemastore.org/kustomization"] = "kustomization.{yml,yaml}",
+							["http://json.schemastore.org/chart"] = "Chart.{yml,yaml}",
+							["http://json.schemastore.org/circleciconfig"] = ".circleci/**/*.{yml,yaml}",
+						},
+					},
+				},
 			}
 		end,
 	},
