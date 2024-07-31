@@ -1,5 +1,4 @@
 vim.g.mapleader = ","         -- using tick as leader key
-vim.opt.cursorline = true     -- enable cursorline
 vim.opt.relativenumber = true -- enable relative number
 vim.opt.background = "light"  -- set background to light
 vim.g.notimeout = true
@@ -51,6 +50,35 @@ local changed_on_branch = function()
 	    :find()
 end
 
+local foldIcon = ''
+local hlgroup = 'NonText'
+local function foldTextFormatter(virtText, lnum, endLnum, width, truncate)
+	local newVirtText = {}
+	local suffix = '  ' .. foldIcon .. '  ' .. tostring(endLnum - lnum)
+	local sufWidth = vim.fn.strdisplaywidth(suffix)
+	local targetWidth = width - sufWidth
+	local curWidth = 0
+	for _, chunk in ipairs(virtText) do
+		local chunkText = chunk[1]
+		local chunkWidth = vim.fn.strdisplaywidth(chunkText)
+		if targetWidth > curWidth + chunkWidth then
+			table.insert(newVirtText, chunk)
+		else
+			chunkText = truncate(chunkText, targetWidth - curWidth)
+			local hlGroup = chunk[2]
+			table.insert(newVirtText, { chunkText, hlGroup })
+			chunkWidth = vim.fn.strdisplaywidth(chunkText)
+			if curWidth + chunkWidth < targetWidth then
+				suffix = suffix .. (' '):rep(targetWidth - curWidth - chunkWidth)
+			end
+			break
+		end
+		curWidth = curWidth + chunkWidth
+	end
+	table.insert(newVirtText, { suffix, hlgroup })
+	return newVirtText
+end
+
 require("lazy").setup({
 	{
 		"elentok/format-on-save.nvim",
@@ -73,22 +101,72 @@ require("lazy").setup({
 		"hrsh7th/nvim-cmp",
 		dependencies = {
 			"hrsh7th/cmp-nvim-lsp",
-			"hrsh7th/cmp-buffer",
-			"hrsh7th/cmp-path",
+			"ray-x/cmp-treesitter",
+			"onsails/lspkind-nvim",
+			"hrsh7th/cmp-nvim-lsp-signature-help"
 		},
 		config = function()
 			local cmp = require("cmp")
+			local lspkind = require("lspkind")
+			local has_words_before = function()
+				local line, col = unpack(vim.api.nvim_win_get_cursor(0))
+				return col ~= 0 and
+				    vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(col, col):match "%s" ==
+				    nil
+			end
+
 			cmp.setup({
+				preselect = cmp.PreselectMode.None,
+				window = {
+					documentation = cmp.config.window.bordered(),
+				},
+				view = {
+					entries = {
+						name = "custom",
+						selection_order = "near_cursor",
+					},
+				},
+				confirm_opts = {
+					behavior = cmp.ConfirmBehavior.Insert,
+				},
 				-- add different completion source
 				sources = cmp.config.sources({
+					{ name = 'nvim_lsp_signature_help' },
 					{ name = "nvim_lsp" },
-					{ name = "buffer" },
-					{ name = "path" },
+					{ name = "treesitter" },
 				}),
+				formatting = {
+					expandable_indicator = true,
+					fields = { "kind", "abbr", "menu" },
+					format = lspkind.cmp_format {
+						mode = "symbol",
+						maxwidth = 60,
+						menu = {
+							treesitter = "󰌪",
+							nvim_lsp = "󰀘",
+							nvim_lsp_signature_help = "󰊕"
+						}
+					}
+				},
 				-- using default mapping preset
 				mapping = cmp.mapping.preset.insert({
-					["<C-Space>"] = cmp.mapping.complete(),
-					["<CR>"] = cmp.mapping.confirm({ select = true }),
+					['<CR>'] = cmp.mapping.confirm { select = true },
+					["<Tab>"] = cmp.mapping(function(fallback)
+						if cmp.visible() then
+							cmp.select_next_item()
+						elseif has_words_before() then
+							cmp.complete()
+						else
+							fallback()
+						end
+					end, { 'i', 's' }),
+					['<S-Tab>'] = cmp.mapping(function(fallback)
+						if cmp.visible() then
+							cmp.select_prev_item()
+						else
+							fallback()
+						end
+					end, { 'i', 's' }),
 				}),
 				snippet = {
 					-- you must specify a snippet engine
@@ -126,8 +204,8 @@ require("lazy").setup({
 				},
 				defaults = {
 					mappings = {
-						i = { ["<c-t>"] = require('trouble.sources.telescope').open },
-						n = { ["<c-t>"] = require('trouble.sources.telescope').open },
+						i = { ["<c-y>"] = require('trouble.sources.telescope').open },
+						n = { ["<c-y>"] = require('trouble.sources.telescope').open },
 					},
 				},
 			})
@@ -149,6 +227,9 @@ require("lazy").setup({
 	},
 	{
 		"zbirenbaum/copilot.lua",
+		dependencies = {
+			"zbirenbaum/copilot-cmp",
+		},
 		cmd = "Copilot",
 		build = ":Copilot auth",
 		event = "InsertEnter",
@@ -157,18 +238,26 @@ require("lazy").setup({
 				enabled = true,
 				auto_trigger = true,
 				keymap = {
-					accept = "<leader>cj",
-					accept_line = "<leader>cl",
+					accept_line = "<C-e>"
 				}
 			},
 			panel = {
-				enabled = true,
+				enabled = false
 			},
 		},
+		keys = {
+			{
+				"<leader>e",
+				function()
+					require("copilot.suggestion").accept()
+				end,
+				desc = "Accept Copilot Suggestion"
+			}
+		}
 	},
 	{
 		"elixir-tools/elixir-tools.nvim",
-		version = "*",
+		version = "0.16.0",
 		event = { "BufReadPre", "BufNewFile" },
 		config = function()
 			local elixir = require("elixir")
@@ -201,13 +290,52 @@ require("lazy").setup({
 	},
 	{
 		"nvim-treesitter/nvim-treesitter",
+		enabled = true,
 		config = function()
 			require("nvim-treesitter.configs").setup({
-				ensure_installed = { "elixir", "eex", "heex" },
+				ensure_installed = { "elixir", "eex", "heex", "lua", "markdown" },
 				highlight = { enable = true },
-				indent = { enable = true },
+				indent = { enable = false },
+				textobjects = {
+					select = {
+						enable = true,
+						lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
+						keymaps = {
+							-- You can use the capture groups defined in textobjects.scm
+							['aa'] = { query = '@parameter.outer', desc = "Select a parameter" },
+							['ia'] = { query = '@parameter.inner', desc = "Select inner parameter" },
+							['af'] = { query = '@function.outer', desc = "Select a function" },
+							['if'] = { query = '@function.inner', desc = "Select inner function" },
+							['ac'] = { query = '@class.outer', desc = "Select a class" },
+							['ic'] = { query = '@class.inner', desc = "Select inner class" },
+							["iB"] = { query = "@block.inner", desc = "Select inner block" },
+							["aB"] = { query = "@block.outer", desc = "Select a block" },
+						},
+					},
+					move = {
+						enable = true,
+						set_jumps = true, -- whether to set jumps in the jumplist
+						goto_next_start = {
+							[']]'] = { query = '@function.outer', desc = "Function start" },
+						},
+						goto_next_end = {
+							[']['] = { query = '@function.outer', desc = "Function end" },
+						},
+						goto_previous_start = {
+							['[['] = { query = '@function.outer', desc = "Function start" },
+						},
+						goto_previous_end = {
+							['[]'] = { query = '@function.outer', desc = "Function end" },
+						},
+					}
+
+				}
 			})
 		end,
+		dependencies = {
+			"nvim-treesitter/nvim-treesitter-textobjects",
+			"nvim-treesitter/nvim-treesitter-refactor"
+		},
 	},
 	{
 		"savq/melange-nvim",
@@ -278,6 +406,7 @@ require("lazy").setup({
 	},
 	{
 		"folke/trouble.nvim",
+		enabled = true,
 		opts = {
 			auto_jump = true
 		},
@@ -323,29 +452,275 @@ require("lazy").setup({
 			vim.o.timeoutlen = 300
 		end,
 		opts = {},
+		dependencies = {
+			"echasnovski/mini.icons"
+		},
 		config = function()
 			local wk = require("which-key")
-			wk.register({
-				["<leader>"] = {
-					name = "Leader",
-					["j"] = {
-						name = "Jump"
-					},
-					["x"] = {
-						name = "Trouble"
-					},
-					["c"] = {
-						name = "Copilot",
-					},
-					["n"] = {
-						name = "NvimTree",
-					},
-					["s"] = {
-						name = "Spectre",
-					},
-				},
+			wk.add({
+				{ "<leader>",  group = "Leader" },
+				{ "<leader>c", group = "Quickfix List" },
+				{ "<leader>j", group = "Jump" },
+				{ "<leader>l", group = "Location List" },
+				{ "<leader>n", group = "NvimTree" },
+				{ "<leader>r", group = "Rabbit" },
+				{ "<leader>s", group = "Spectre" },
+				{ "<leader>t", group = "Tabs" },
+				{ "<leader>x", group = "Trouble" },
 			})
 		end,
+	},
+	{
+		"kylechui/nvim-surround",
+		version = "*", -- Use for stability; omit to use `main` branch for the latest features
+		event = "VeryLazy",
+		config = function()
+			require("nvim-surround").setup({
+				-- Configuration here, or leave empty to use defaults
+			})
+		end,
+		dependencies = {
+			"nvim-treesitter/nvim-treesitter",
+		}
+	},
+	{
+		'voxelprismatic/rabbit.nvim',
+		cmd = 'Rabbit',
+		keys = {
+			{
+				'<leader>rr',
+				function()
+					require('rabbit').Window 'history'
+				end,
+				mode = 'n',
+				desc = 'Open Rabbit',
+			},
+			{
+				'<leader>rj',
+				function()
+					require('rabbit').Switch 'history' -- Will close current Rabbit window if necessary
+					require('rabbit').func.select(1) -- Selects the first entry shown to the user
+				end,
+				mode = 'n',
+				desc = 'Toggle Rabbit',
+			},
+		},
+		opts = {
+			colors = {
+				term = { fg = '#34ab7e', italic = true },
+			},
+			window = {
+				plugin_name_position = 'title',
+			},
+		},
+	},
+
+	{
+		"ten3roberts/qf.nvim",
+		opts = {
+			-- Location list configuration
+			["l"] = {
+				auto_follow = "prev",
+			},
+			-- Quickfix list configuration
+			["c"] = {
+				auto_follow = "prev",
+				auto_resize = false,
+				wide = true,
+			},
+			close_other = true,
+		},
+		keys = {
+			{
+				"<leader>lo",
+				function()
+					require("qf").open("l")
+				end,
+				desc = 'Open location list',
+			},
+			{
+				"<leader>lc",
+				function()
+					require("qf").open("c")
+				end,
+				desc = 'Close quickfix list',
+			},
+			{
+				"<leader>ll",
+				function()
+					require("qf").toggle("l", true)
+				end,
+				desc = 'Toggle location list',
+			},
+			{
+				"<leader>co",
+				function()
+					require("qf").open("c")
+				end,
+				desc = 'Open quickfix list',
+			},
+			{
+				"<leader>cc",
+				function()
+					require("qf").close("c")
+				end,
+				desc = 'Close quickfix list',
+			},
+			{
+				"<leader>cl",
+				function()
+					require("qf").toggle("c", true)
+				end,
+				desc = 'Toggle quickfix list',
+			},
+			{
+				"<leader>j",
+				function()
+					require("qf").below("l")
+				end,
+				desc = "Go to next location list entry from cursor"
+			},
+			{
+				"<leader>k",
+				function()
+					require("qf").above("l")
+				end,
+				desc = "Go to previous location list entry from cursor"
+			},
+			{
+				"<leader>J",
+				function()
+					require("qf").below("c")
+				end,
+				desc = "Go to next quickfix list entry from cursor"
+			},
+			{
+				"<leader>K",
+				function()
+					require("qf").above("c")
+				end,
+				desc = "Go to previous quickfix list entry from cursor"
+			},
+			{
+				"<leader>]q",
+				function()
+					require("qf").below("visible")
+				end,
+				desc = "Go to next entry from cursor in visible list"
+			},
+			{
+				"<leader>[q",
+				function()
+					require("qf").above("visible")
+				end,
+				desc = "Go to previous entry from cursor in visible list"
+			},
+		},
+		config = function()
+			require("qf").setup()
+		end,
+	},
+	{
+		"chrisgrieser/nvim-origami",
+		event = "BufReadPost", -- later or on keypress would prevent saving folds
+		opts = {}, -- needed even when using default config
+	},
+	{
+		'kevinhwang91/nvim-ufo',
+		dependencies = 'kevinhwang91/promise-async',
+		event = 'BufReadPost', -- needed for folds to load in time
+		keys = {
+			{
+				'zr',
+				function()
+					require('ufo').openFoldsExceptKinds({ 'imports', 'comment' })
+				end,
+				desc = ' 󱃄 Open All Folds except comments',
+			},
+			{
+				'zm',
+				function()
+					require('ufo').closeAllFolds()
+				end,
+				desc = ' 󱃄 Close All Folds',
+			},
+			{
+				'z1',
+				function()
+					require('ufo').closeFoldsWith(1)
+				end,
+				desc = ' 󱃄 Close L1 Folds',
+			},
+			{
+				'z2',
+				function()
+					require('ufo').closeFoldsWith(2)
+				end,
+				desc = ' 󱃄 Close L2 Folds',
+			},
+			{
+				'z3',
+				function()
+					require('ufo').closeFoldsWith(3)
+				end,
+				desc = ' 󱃄 Close L3 Folds',
+			},
+			{
+				'z4',
+				function()
+					require('ufo').closeFoldsWith(4)
+				end,
+				desc = ' 󱃄 Close L4 Folds',
+			},
+		},
+		init = function()
+			-- INFO fold commands usually change the foldlevel, which fixes folds, e.g.
+			-- auto-closing them after leaving insert mode, however ufo does not seem to
+			-- have equivalents for zr and zm because there is no saved fold level.
+			-- Consequently, the vim-internal fold levels need to be disabled by setting
+			-- them to 99
+			vim.opt.foldlevel = 99
+			vim.opt.foldlevelstart = 99
+		end,
+		opts = {
+			provider_selector = function(_, ft, _)
+				-- INFO some filetypes only allow indent, some only LSP, some only
+				-- treesitter. However, ufo only accepts two kinds as priority,
+				-- therefore making this function necessary :/
+				local lspWithOutFolding = { 'markdown', 'sh', 'css', 'html', 'python' }
+				if vim.tbl_contains(lspWithOutFolding, ft) then
+					return { 'treesitter', 'indent' }
+				end
+				return { 'lsp', 'indent' }
+			end,
+			-- open opening the buffer, close these fold kinds
+			-- use `:UfoInspect` to get available fold kinds from the LSP
+			close_fold_kinds_for_ft = { lsp = { 'imports', 'comment' } },
+			open_fold_hl_timeout = 800,
+			fold_virt_text_handler = foldTextFormatter,
+		},
+	},
+	{
+		"ray-x/lsp_signature.nvim",
+		event = "VeryLazy",
+		opts = {},
+		config = function(_, opts) require 'lsp_signature'.setup(opts) end
+	},
+	{
+		"folke/flash.nvim",
+		event = "VeryLazy",
+		opts = {},
+		-- stylua: ignore
+		keys = {
+			{ "s",     mode = { "n", "x", "o" }, function() require("flash").jump() end,              desc = "Flash" },
+			{ "S",     mode = { "n", "x", "o" }, function() require("flash").treesitter() end,        desc = "Flash Treesitter" },
+			{ "r",     mode = "o",               function() require("flash").remote() end,            desc = "Remote Flash" },
+			{ "R",     mode = { "o", "x" },      function() require("flash").treesitter_search() end, desc = "Treesitter Search" },
+			{ "<c-s>", mode = { "c" },           function() require("flash").toggle() end,            desc = "Toggle Flash Search" },
+		},
+		config = function()
+			vim.api.nvim_set_hl(0, "FlashLabel", { bg = "#000000", fg = "#ffffff" })
+		end
 	}
 })
 local builtin = require('telescope.builtin')
@@ -365,3 +740,12 @@ vim.keymap.set("n", "gi", function() trouble.open({ mode = "lsp_implementations"
 vim.api.nvim_set_keymap("n", "<Leader><Leader>",
 	[[<cmd>lua require('telescope').extensions.recent_files.pick()<CR>]],
 	{ noremap = true, silent = true, desc = "Recent Files (Telescope)" })
+
+-- add keymaps for tabs
+vim.keymap.set("n", "<leader>tn", ":tabnew<cr>", { desc = "New Tab" })
+vim.keymap.set("n", "<leader>tc", ":tabclose<cr>", { desc = "Close Tab" })
+vim.keymap.set("n", "<leader>to", ":tabonly<cr>", { desc = "Close Other Tabs" })
+vim.keymap.set("n", "<A-,>", ":tabprevious<cr>", { desc = "Previous Tab" })
+vim.keymap.set("n", "<A-.>", ":tabnext<cr>", { desc = "Next Tab" })
+vim.keymap.set("n", "<A-<>", ":tabmove -1<cr>", { desc = "Move Tab Left" })
+vim.keymap.set("n", "<A->>", ":tabmove +1<cr>", { desc = "Move Tab Right" })
