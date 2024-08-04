@@ -84,6 +84,10 @@ local function foldTextFormatter(virtText, lnum, endLnum, width, truncate)
 	return newVirtText
 end
 
+function GenericHighlights()
+	--vim.api.nvim_set_hl(0, "Function", { fg = "#721045", bold = true })
+end
+
 require("lazy").setup({
 	{
 		"elentok/format-on-save.nvim",
@@ -247,7 +251,7 @@ require("lazy").setup({
 				}
 			},
 			panel = {
-				enabled = false
+				enabled = true
 			},
 		},
 		keys = {
@@ -258,6 +262,9 @@ require("lazy").setup({
 				end,
 				desc = "Accept Copilot Suggestion"
 			}
+		},
+		server_opts_overrides = {
+			trace = "verbose",
 		}
 	},
 	{
@@ -273,7 +280,7 @@ require("lazy").setup({
 				credo = { enable = true },
 				elixirls = {
 					enable = true,
-					cmd = "/home/vscode/.elixir-ls/language_server.sh",
+					cmd = "/Users/stephensolka/.elixir-ls/language_server.sh",
 					settings = elixirls.settings {
 						dialyzerEnabled = false,
 						enableTestLenses = false,
@@ -343,13 +350,21 @@ require("lazy").setup({
 		},
 	},
 	{
-		"savq/melange-nvim",
-		lazy = false,
-		priority = 1000,
+		"miikanissi/modus-themes.nvim",
+		lazy = false, -- make sure we load this during startup if it is your main colorscheme
+		priority = 1000, -- make sure to load this before all the other start plugins
 		config = function()
-			vim.o.termguicolors = true
-			vim.cmd([[colorscheme melange]])
-		end
+			vim.opt.background = "light"
+			local mycolour = vim.api.nvim_create_augroup('MyColours', { clear = true })
+			vim.api.nvim_create_autocmd('ColorScheme', {
+				pattern = '*',
+				group = mycolour,
+				callback = function()
+					GenericHighlights()
+				end
+			})
+			vim.cmd('colorscheme modus_operandi')
+		end,
 	},
 	{
 		"neovim/nvim-lspconfig",
@@ -743,7 +758,13 @@ require("lazy").setup({
 		config = function()
 			vim.api.nvim_set_hl(0, "FlashLabel", { bg = "#000000", fg = "#ffffff" })
 		end
-	}
+	},
+	{ "chrisgrieser/nvim-spider", lazy = true },
+	{
+		"m4xshen/hardtime.nvim",
+		dependencies = { "MunifTanjim/nui.nvim", "nvim-lua/plenary.nvim" },
+		opts = {}
+	},
 })
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>jp', builtin.find_files, { desc = "Find Files (Telescope)" })
