@@ -355,13 +355,122 @@ require("lazy").setup({
 		priority = 1000, -- make sure to load this before all the other start plugins
 		config = function()
 			vim.opt.background = "light"
-			local mycolour = vim.api.nvim_create_augroup('MyColours', { clear = true })
-			vim.api.nvim_create_autocmd('ColorScheme', {
-				pattern = '*',
-				group = mycolour,
-				callback = function()
-					GenericHighlights()
+			require("modus-themes").setup({
+				on_colors = function(colors)
+					colors.bg_main = "#ffffff"
+					colors.bg_dim = "#f0f0f0"
+					colors.bg_alt = "#e0e0e0"
+					colors.fg_main = "#000000"
+					colors.fg_dim = "#505050"
+					colors.fg_alt = "#0033cc"
+					colors.border = "#808080"
+					colors.border_highlight = "#a0a0a0"
+
+					colors.red = "#cc0000"
+					colors.red_warmer = "#ff3300"
+					colors.red_cooler = "#ff6699"
+					colors.red_faint = "#ff9999"
+					colors.green = "#006600"
+					colors.green_warmer = "#66cc00"
+					colors.green_cooler = "#00cc99"
+					colors.green_faint = "#99cc99"
+					colors.yellow = "#cccc00"
+					colors.yellow_warmer = "#ffcc33"
+					colors.yellow_cooler = "#cccc99"
+					colors.yellow_faint = "#cccc66"
+					colors.blue = "#0033cc"
+					colors.blue_warmer = "#6699ff"
+					colors.blue_cooler = "#3399ff"
+					colors.blue_faint = "#6688cc" -- Adjusted for better readability
+					colors.magenta = "#cc0099"
+					colors.magenta_warmer = "#ff33cc"
+					colors.magenta_cooler = "#cc33ff"
+					colors.magenta_faint = "#ff99cc"
+					colors.cyan = "#009999"
+					colors.cyan_warmer = "#33cccc"
+					colors.cyan_cooler = "#00cccc"
+					colors.cyan_faint = "#66cccc"
+
+					colors.rust = "#cc6633"
+					colors.gold = "#b8860b"
+					colors.olive = "#669933"
+					colors.slate = "#557799"
+					colors.indigo = "#6666cc"
+					colors.maroon = "#cc6699"
+					colors.pink = "#ff99cc"
+
+					colors.red_intense = "#cc0000"
+					colors.green_intense = "#006600"
+					colors.yellow_intense = "#cccc00"
+					colors.blue_intense = "#336699" -- Adjusted for better readability
+					colors.magenta_intense = "#cc0099"
+					colors.cyan_intense = "#009999"
+
+					colors.bg_red_intense = "#ffcccc"
+					colors.bg_green_intense = "#ccffcc"
+					colors.bg_yellow_intense = "#ffffcc"
+					colors.bg_blue_intense = "#99bbff" -- Adjusted for better readability
+					colors.bg_magenta_intense = "#ffccff"
+					colors.bg_cyan_intense = "#ccffff"
+
+					colors.bg_red_subtle = "#ff9999"
+					colors.bg_green_subtle = "#99ff99"
+					colors.bg_yellow_subtle = "#ffff99"
+					colors.bg_blue_subtle = "#99b3ff" -- Adjusted for better readability
+					colors.bg_magenta_subtle = "#ff99ff"
+					colors.bg_cyan_subtle = "#99ffff"
+
+					colors.bg_red_nuanced = "#ffe6e6"
+					colors.bg_green_nuanced = "#e6ffe6"
+					colors.bg_yellow_nuanced = "#ffffe6"
+					colors.bg_blue_nuanced = "#e6f2ff"
+					colors.bg_magenta_nuanced = "#ffe6ff"
+					colors.bg_cyan_nuanced = "#e6ffff"
+
+					colors.bg_completion = "#cce6ff"
+					colors.bg_hl_line = "#e6e6e6"
+					colors.bg_paren_match = "#cce6ff"
+					colors.bg_paren_expression = "#ffccff"
+					colors.bg_char_0 = "#ccf2ff"
+					colors.bg_char_1 = "#ffccff"
+					colors.bg_char_2 = "#f0e68c"
+
+					colors.bg_active = "#f2f2f2"
+					colors.fg_active = "#000000"
+					colors.bg_inactive = "#e6e6e6"
+					colors.fg_inactive = "#a0a0a0"
+					colors.bg_status_line_active = "#e0e0e0"
+					colors.fg_status_line_active = "#000000"
+					colors.bg_status_line_inactive = "#d9d9d9"
+					colors.fg_status_line_inactive = "#808080"
+
+					colors.bg_tab_bar = "#e0e0e0"
+					colors.bg_tab_current = "#ffffff"
+					colors.bg_tab_other = "#d3d3d3"
+					colors.fg_tab_other = "#000000"
+					colors.bg_tab_alternate = "#c0c0e0"
+
+					colors.bg_added = "#ccffcc"
+					colors.bg_added_faint = "#e0ffe0"
+					colors.bg_added_refine = "#b3ffb3"
+					colors.bg_added_fringe = "#66ff66"
+					colors.fg_added = "#006600"
+					colors.fg_added_intense = "#009900"
+					colors.bg_changed = "#ffffcc"
+					colors.bg_changed_faint = "#ffffe6"
+					colors.bg_changed_refine = "#ffff99"
+					colors.bg_changed_fringe = "#ffff33"
+					colors.fg_changed = "#999900"
+					colors.fg_changed_intense = "#cccc00"
+					colors.bg_removed = "#ffcccc"
+					colors.bg_removed_faint = "#ffe6e6"
+					colors.bg_removed_refine = "#ff9999"
+					colors.bg_removed_fringe = "#ff6666"
+					colors.fg_removed = "#cc0000"
+					colors.fg_removed_intense = "#e60000"
+					colors.bg_diff_context = "#e6e6e6"
 				end
+
 			})
 			vim.cmd('colorscheme modus_operandi')
 		end,
