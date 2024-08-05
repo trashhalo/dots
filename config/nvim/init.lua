@@ -353,6 +353,9 @@ require("lazy").setup({
 		"miikanissi/modus-themes.nvim",
 		lazy = false, -- make sure we load this during startup if it is your main colorscheme
 		priority = 1000, -- make sure to load this before all the other start plugins
+		dependencies = {
+			"adityastomar67/italicize",
+		},
 		config = function()
 			vim.opt.background = "light"
 			require("modus-themes").setup({
@@ -366,7 +369,7 @@ require("lazy").setup({
 					-- Colors inspired directly by the Tokyo subway map
 					colors.red = "#f52f2f" -- Marunouchi Line
 					colors.green = "#00b261" -- Chiyoda Line
-					colors.yellow = "#ffd400" -- Ginza Line
+					colors.yellow = "#D9A900" -- Ginza Line
 					colors.blue = "#0079c2" -- Tozai Line
 					colors.magenta = "#9c5e31" -- Fukutoshin Line
 					colors.cyan = "#00a7db" -- Asakusa Line
@@ -594,6 +597,22 @@ require("lazy").setup({
 				end
 			})
 			vim.cmd('colorscheme modus_operandi')
+			require("italicize").setup({
+				italics = true,
+				italics_groups = {
+					"Comment",
+					"Todo",
+					"SpecialComment",
+					"TSEmphasis",
+					"TSEnvironmentName",
+					"TSParameter",
+					"TSKeywordReturn",
+					"TSStringRegex",
+					"TSVariableBuiltin",
+					"NvimTreeGitRenamed",
+					"NvimTreeFileRenamed"
+				}
+			})
 		end,
 	},
 	{
@@ -995,6 +1014,12 @@ require("lazy").setup({
 		dependencies = { "MunifTanjim/nui.nvim", "nvim-lua/plenary.nvim" },
 		opts = {}
 	},
+	{
+		'norcalli/nvim-colorizer.lua',
+		config = function()
+			require('colorizer').setup()
+		end
+	}
 })
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>jp', builtin.find_files, { desc = "Find Files (Telescope)" })
