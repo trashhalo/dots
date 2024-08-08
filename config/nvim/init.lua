@@ -409,46 +409,22 @@ require("lazy").setup({
 					colors.bg_removed = "#ffebe9"
 				end,
 				on_highlights = function(highlight, color)
-					-- Syntax highlighting
-					highlight.Comment = { fg = color.brown, italic = true }
+					highlight.Function = { fg = color.red, bold = true }
 					highlight.String = { fg = color.blue }
 					highlight.Number = { fg = color.orange }
 					highlight.Boolean = { fg = color.green, bold = true }
-					highlight.Function = { fg = color.red, bold = true }
 					highlight.Keyword = { fg = color.magenta }
 					highlight.Conditional = { fg = color.purple }
 					highlight.Operator = { fg = color.cyan }
 					highlight.Type = { fg = color.yellow }
+					highlight.Comment = { fg = color.brown, italic = true }
 
 					-- UI elements
-					highlight.CursorLine = { bg = color.bg_dim }
 					highlight.Visual = { bg = color.yellow, fg = color.bg_main }
-					highlight.Search = { bg = color.green, fg = color.bg_main }
-					highlight.IncSearch = { bg = color.orange, fg = color.bg_main }
-					highlight.LineNr = { fg = color.blue }
-					highlight.CursorLineNr = { fg = color.red, bold = true }
-
-					-- Status line
-					highlight.StatusLine = { bg = color.blue, fg = color.bg_main }
-					highlight.StatusLineNC = { bg = color.bg_dim, fg = color.fg_dim }
-
-					-- Tabs
-					highlight.TabLine = { bg = color.bg_dim, fg = color.fg_dim }
-					highlight.TabLineSel = { bg = color.red, fg = color.bg_main, bold = true }
-					highlight.TabLineFill = { bg = color.bg_main }
 
 					-- Popup menu
 					highlight.Pmenu = { bg = color.bg_dim, fg = color.fg_main }
 					highlight.PmenuSel = { bg = color.blue, fg = color.bg_main }
-
-					-- Git diff
-					highlight.DiffAdd = { bg = color.green, fg = color.bg_main }
-					highlight.DiffChange = { bg = color.yellow, fg = color.bg_main }
-					highlight.DiffDelete = { bg = color.red, fg = color.bg_main }
-
-					-- Errors and warnings
-					highlight.Error = { fg = color.red, bold = true }
-					highlight.WarningMsg = { fg = color.orange, bold = true }
 
 					-- Miscellaneous Syntax related non-standard highlights
 					highlight.qfLineNr = { fg = color.fg_dim }
@@ -505,6 +481,7 @@ require("lazy").setup({
 
 					highlight.ALEErrorSign = { fg = color.red, bold = true }
 					highlight.ALEWarningSign = { fg = color.yellow, bold = true }
+
 					-- Neovim tree-sitter highlights
 					-- Identifiers
 					highlight["@variable.parameter"] = { fg = color.cyan }
@@ -517,15 +494,9 @@ require("lazy").setup({
 					highlight["@string.special.path"] = { fg = color.blue }
 					highlight["@string.special.url"] = { fg = color.cyan }
 
-
-
-					-- Types
-
-
 					-- Functions
-
 					highlight["@constructor"] = { fg = color.yellow }
-					-- Keywords
+
 					-- Punctuation
 					highlight["@punctuation.bracket"] = { fg = color.fg_main }
 					highlight["@punctuation.special"] = { fg = color.fg_main }
@@ -551,10 +522,6 @@ require("lazy").setup({
 					highlight["@markup.list"] = { fg = color.fg_main }
 					highlight["@markup.list.checked"] = { fg = color.green }
 					highlight["@markup.list.unchecked"] = { fg = color.yellow }
-
-					-- Diff
-
-					-- Tags
 
 					highlight["@none"] = {}
 
@@ -594,6 +561,11 @@ require("lazy").setup({
 					highlight.WhichKeySeparator = { fg = color.fg_dim }
 					highlight.WhichKeyFloat = { bg = color.bg_dim }
 					highlight.WhichKeyValue = { fg = color.fg_dim }
+
+					-- Yaml
+					highlight["@property.yaml"] = { fg = color.fg_main }
+					highlight["@string.yaml"] = { fg = color.blue }
+					highlight["@punctuation.delimiter.yaml"] = { fg = color.pink, bold = true }
 				end
 			})
 			vim.cmd('colorscheme modus_operandi')
@@ -749,7 +721,6 @@ require("lazy").setup({
 				{ "<leader>j", group = "Jump" },
 				{ "<leader>l", group = "Location List" },
 				{ "<leader>n", group = "NvimTree" },
-				{ "<leader>r", group = "Rabbit" },
 				{ "<leader>s", group = "Spectre" },
 				{ "<leader>t", group = "Tabs" },
 				{ "<leader>x", group = "Trouble" },
@@ -768,143 +739,6 @@ require("lazy").setup({
 		dependencies = {
 			"nvim-treesitter/nvim-treesitter",
 		}
-	},
-	{
-		'voxelprismatic/rabbit.nvim',
-		cmd = 'Rabbit',
-		keys = {
-			{
-				'<leader>rr',
-				function()
-					require('rabbit').Window 'history'
-				end,
-				mode = 'n',
-				desc = 'Open Rabbit',
-			},
-			{
-				'<leader>rj',
-				function()
-					require('rabbit').Switch 'history' -- Will close current Rabbit window if necessary
-					require('rabbit').func.select(1) -- Selects the first entry shown to the user
-				end,
-				mode = 'n',
-				desc = 'Toggle Rabbit',
-			},
-		},
-		opts = {
-			colors = {
-				term = { fg = '#34ab7e', italic = true },
-			},
-			window = {
-				plugin_name_position = 'title',
-			},
-		},
-	},
-
-	{
-		"ten3roberts/qf.nvim",
-		opts = {
-			-- Location list configuration
-			["l"] = {
-				auto_follow = "prev",
-			},
-			-- Quickfix list configuration
-			["c"] = {
-				auto_follow = "prev",
-				auto_resize = false,
-				wide = true,
-			},
-			close_other = true,
-		},
-		keys = {
-			{
-				"<leader>lo",
-				function()
-					require("qf").open("l")
-				end,
-				desc = 'Open location list',
-			},
-			{
-				"<leader>lc",
-				function()
-					require("qf").open("c")
-				end,
-				desc = 'Close quickfix list',
-			},
-			{
-				"<leader>ll",
-				function()
-					require("qf").toggle("l", true)
-				end,
-				desc = 'Toggle location list',
-			},
-			{
-				"<leader>co",
-				function()
-					require("qf").open("c")
-				end,
-				desc = 'Open quickfix list',
-			},
-			{
-				"<leader>cc",
-				function()
-					require("qf").close("c")
-				end,
-				desc = 'Close quickfix list',
-			},
-			{
-				"<leader>cl",
-				function()
-					require("qf").toggle("c", true)
-				end,
-				desc = 'Toggle quickfix list',
-			},
-			{
-				"<leader>j",
-				function()
-					require("qf").below("l")
-				end,
-				desc = "Go to next location list entry from cursor"
-			},
-			{
-				"<leader>k",
-				function()
-					require("qf").above("l")
-				end,
-				desc = "Go to previous location list entry from cursor"
-			},
-			{
-				"<leader>J",
-				function()
-					require("qf").below("c")
-				end,
-				desc = "Go to next quickfix list entry from cursor"
-			},
-			{
-				"<leader>K",
-				function()
-					require("qf").above("c")
-				end,
-				desc = "Go to previous quickfix list entry from cursor"
-			},
-			{
-				"<leader>]q",
-				function()
-					require("qf").below("visible")
-				end,
-				desc = "Go to next entry from cursor in visible list"
-			},
-			{
-				"<leader>[q",
-				function()
-					require("qf").above("visible")
-				end,
-				desc = "Go to previous entry from cursor in visible list"
-			},
-		},
-		config = function()
-			require("qf").setup()
-		end,
 	},
 	{
 		"chrisgrieser/nvim-origami",
@@ -1008,18 +842,100 @@ require("lazy").setup({
 			vim.api.nvim_set_hl(0, "FlashLabel", { bg = "#000000", fg = "#ffffff" })
 		end
 	},
-	{ "chrisgrieser/nvim-spider", lazy = true },
+	{
+		"chrisgrieser/nvim-spider",
+		lazy = true,
+		keys = {
+			{
+				"e",
+				"<cmd>lua require('spider').motion('e')<CR>",
+				mode = { "n", "o", "x" },
+			},
+			{
+				"b",
+				"<cmd>lua require('spider').motion('b')<CR>",
+				mode = { "n", "o", "x" },
+			},
+			{
+				"w",
+				"<cmd>lua require('spider').motion('w')<CR>",
+				mode = { "n", "o", "x" },
+			},
+		}
+	},
 	{
 		"m4xshen/hardtime.nvim",
 		dependencies = { "MunifTanjim/nui.nvim", "nvim-lua/plenary.nvim" },
-		opts = {}
+		opts = {
+			disabled_filetypes = { "spectre_panel", "oil", "qf", "help" }
+		}
 	},
 	{
 		'norcalli/nvim-colorizer.lua',
 		config = function()
 			require('colorizer').setup()
 		end
-	}
+	},
+	{
+		'stevearc/oil.nvim',
+		opts = {},
+		dependencies = { "nvim-tree/nvim-web-devicons" },
+		keys = {
+			{ "-", "<cmd>Oil<cr>", desc = "Open Oil" },
+		},
+		config = function()
+			require("oil").setup({
+				default_file_explorer = true,
+				delete_to_trash = true,
+				skip_confirm_for_simple_edits = true,
+				view_options = {
+					show_hidden = true,
+					natural_order = true,
+					is_always_hidden = function(name, _)
+						return name == ".." or name == ".git"
+					end,
+				},
+				float = {
+					padding = 2,
+					max_width = 90,
+					max_height = 0,
+				},
+				win_options = {
+					wrap = true,
+					winblend = 0,
+				},
+				keymaps = {
+					["<C-c>"] = false,
+					["q"] = "actions.close",
+				},
+			})
+		end,
+
+	},
+	{
+		"jessekelighine/vindent.vim",
+		event = "VimEnter",
+		init = function()
+			vim.g.vindent_motion_OO_prev = '[l'
+			vim.g.vindent_motion_OO_next = ']l'
+			vim.g.vindent_motion_less_prev = '[-'
+			vim.g.vindent_motion_less_next = ']-'
+			vim.g.vindent_motion_more_prev = '[='
+			vim.g.vindent_motion_more_next = ']='
+			vim.g.vindent_motion_XX_ss = '[p'
+			vim.g.vindent_motion_XX_se = ']p'
+			vim.g.vindent_motion_OX_ss = '[P'
+			vim.g.vindent_motion_OX_se = ']P'
+			vim.g.vindent_object_OO_ii = 'iI'
+			vim.g.vindent_object_XX_ii = 'ii'
+			vim.g.vindent_object_XX_ai = 'ai'
+			vim.g.vindent_object_XX_aI = 'aI'
+			vim.g.vindent_jumps = 1
+			vim.g.vindent_begin = 1
+			vim.g.vindent_count = 0
+		end,
+	},
+	"jonatan-branting/nvim-better-n"
 })
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>jp', builtin.find_files, { desc = "Find Files (Telescope)" })
