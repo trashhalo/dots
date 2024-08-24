@@ -1,8 +1,10 @@
 vim.g.mapleader = ","         -- using tick as leader key
 vim.opt.relativenumber = true -- enable relative number
 vim.opt.background = "light"  -- set background to light
-vim.g.notimeout = true
-vim.g.nottimeout = true
+vim.g.notimeout = true        -- disable timeout, which means that mappings will wait for the next key
+vim.g.nottimeout = true       -- disable ttimmeout, the differnce between timeout and ttimeout is that the latter is for keycodes that are part of a sequence
+vim.opt.mouse = "a"           -- enable mouse support, this helps with scrolling and resizing splits
+
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities.textDocument.foldingRange = {
 	dynamicRegistration = false,
@@ -84,10 +86,6 @@ local function foldTextFormatter(virtText, lnum, endLnum, width, truncate)
 	return newVirtText
 end
 
-function GenericHighlights()
-	--vim.api.nvim_set_hl(0, "Function", { fg = "#721045", bold = true })
-end
-
 require("lazy").setup({
 	{
 		"elentok/format-on-save.nvim",
@@ -97,7 +95,8 @@ require("lazy").setup({
 			format_on_save.setup({
 				formatter_by_ft = {
 					elixir = formatters.lsp,
-					lua = formatters.lsp
+					lua = formatters.lsp,
+					typescript = formatters.prettierd,
 				},
 				experiments = {
 					partial_update = 'diff'
@@ -350,12 +349,16 @@ require("lazy").setup({
 		},
 	},
 	{
+		"catppuccin/nvim",
+		name = "catppuccin",
+		priority = 1000,
+		config = function()
+		end
+	},
+	{
 		"miikanissi/modus-themes.nvim",
 		lazy = false, -- make sure we load this during startup if it is your main colorscheme
 		priority = 1000, -- make sure to load this before all the other start plugins
-		dependencies = {
-			"adityastomar67/italicize",
-		},
 		config = function()
 			vim.opt.background = "light"
 			require("modus-themes").setup({
@@ -568,23 +571,7 @@ require("lazy").setup({
 					highlight["@punctuation.delimiter.yaml"] = { fg = color.pink, bold = true }
 				end
 			})
-			vim.cmd('colorscheme modus_operandi')
-			require("italicize").setup({
-				italics = true,
-				italics_groups = {
-					"Comment",
-					"Todo",
-					"SpecialComment",
-					"TSEmphasis",
-					"TSEnvironmentName",
-					"TSParameter",
-					"TSKeywordReturn",
-					"TSStringRegex",
-					"TSVariableBuiltin",
-					"NvimTreeGitRenamed",
-					"NvimTreeFileRenamed"
-				}
-			})
+			vim.cmd("colorscheme modus")
 		end,
 	},
 	{
@@ -724,6 +711,7 @@ require("lazy").setup({
 				{ "<leader>s", group = "Spectre" },
 				{ "<leader>t", group = "Tabs" },
 				{ "<leader>x", group = "Trouble" },
+				{ "<leader>1", group = "Toggleterm" }
 			})
 		end,
 	},
@@ -935,7 +923,54 @@ require("lazy").setup({
 			vim.g.vindent_count = 0
 		end,
 	},
-	"jonatan-branting/nvim-better-n"
+	{
+		"epwalsh/obsidian.nvim",
+		version = "*", -- recommended, use latest release instead of latest commit
+		lazy = true,
+		event = {
+			"BufReadPre " .. vim.fn.expand("~") .. "/Documents/New beginnings Aug 23/*",
+			"BufReadPre " .. vim.fn.expand("~") .. "/Documents/PARA/*",
+		},
+		dependencies = {
+			"nvim-lua/plenary.nvim",
+			"nvim-telescope/telescope.nvim",
+			"hrsh7th/nvim-cmp"
+		},
+		opts = {
+			workspaces = {
+				{
+					name = "personal",
+					path = "~/Documents/New beginnings Aug 23"
+				},
+				{
+					name = "work",
+					path = "~/Documents/PARA"
+				},
+			},
+		},
+		init = function()
+			vim.opt.conceallevel = 1
+		end
+	},
+	{
+		'akinsho/toggleterm.nvim',
+		version = "*",
+		config = function()
+			require("toggleterm").setup {}
+		end,
+		keys = {
+			{ "<leader>11", "<cmd>ToggleTerm<cr>", desc = "Toggle Terminal" },
+		},
+	},
+	{
+		"willothy/flatten.nvim",
+		config = true,
+		-- or pass configuration with
+		-- opts = {  }
+		-- Ensure that it runs first to minimize delay when opening file from terminal
+		lazy = false,
+		priority = 1001,
+	},
 })
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>jp', builtin.find_files, { desc = "Find Files (Telescope)" })
@@ -948,9 +983,11 @@ vim.keymap.set('n', '<leader>jb', changed_on_branch, { desc = "Changed on Branch
 vim.keymap.set('n', '<leader>jc', builtin.commands, { desc = "Commands (Telescope)" })
 local trouble = require("trouble")
 vim.keymap.set("n", "gd", function() trouble.open({ mode = "lsp_definitions" }) end,
-	{ desc = "LSP Definitions (Trouble)" })
+	{ desc = "🔭 Definitions" })
 vim.keymap.set("n", "gi", function() trouble.open({ mode = "lsp_implementations" }) end,
-	{ desc = "LSP Implementations (Trouble)" })
+	{ desc = "🔭 Implementations" })
+vim.keymap.set("n", "gR", function() trouble.open({ mode = "lsp_references" }) end,
+	{ desc = "🔭 References" })
 vim.api.nvim_set_keymap("n", "<Leader><Leader>",
 	[[<cmd>lua require('telescope').extensions.recent_files.pick()<CR>]],
 	{ noremap = true, silent = true, desc = "Recent Files (Telescope)" })
@@ -959,7 +996,8 @@ vim.api.nvim_set_keymap("n", "<Leader><Leader>",
 vim.keymap.set("n", "<leader>tn", ":tabnew<cr>", { desc = "New Tab" })
 vim.keymap.set("n", "<leader>tc", ":tabclose<cr>", { desc = "Close Tab" })
 vim.keymap.set("n", "<leader>to", ":tabonly<cr>", { desc = "Close Other Tabs" })
-vim.keymap.set("n", "<A-,>", ":tabprevious<cr>", { desc = "Previous Tab" })
-vim.keymap.set("n", "<A-.>", ":tabnext<cr>", { desc = "Next Tab" })
+vim.keymap.set("n", "[t", ":tabprevious<cr>", { desc = "Previous Tab" })
+vim.keymap.set("n", "]t", ":tabnext<cr>", { desc = "Next Tab" })
 vim.keymap.set("n", "<A-<>", ":tabmove -1<cr>", { desc = "Move Tab Left" })
 vim.keymap.set("n", "<A->>", ":tabmove +1<cr>", { desc = "Move Tab Right" })
+vim.api.nvim_set_keymap("t", "<esc>", "<C-\\><C-n>", { noremap = true, silent = true })
