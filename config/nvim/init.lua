@@ -161,8 +161,6 @@ require("lazy").setup({
 	{
 		'nvim-telescope/telescope-fzf-native.nvim',
 		build = 'make',
-		config = function()
-		end
 	},
 	{ 'nvim-telescope/telescope-ui-select.nvim' },
 	{
@@ -332,8 +330,6 @@ require("lazy").setup({
 		"catppuccin/nvim",
 		name = "catppuccin",
 		priority = 1000,
-		config = function()
-		end
 	},
 	{
 		"miikanissi/modus-themes.nvim",
@@ -623,8 +619,6 @@ require("lazy").setup({
 		opts = {
 			custom_filetypes = { "heex", "elixir", "eelixir" },
 		},
-		config = function()
-		end
 	},
 	{
 		"nvim-pack/nvim-spectre",
