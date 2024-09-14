@@ -154,13 +154,7 @@ require("lazy").setup({
 			require("plugins.lspconfig").setup()
 		end,
 	},
-	{
-		"mhanberg/output-panel.nvim",
-		event = "VeryLazy",
-		config = function()
-			require("output_panel").setup()
-		end
-	},
+	{ import = "plugins.output-panel" },
 	{ import = "plugins.nvim-tree" },
 	"nvim-tree/nvim-web-devicons",
 	{
