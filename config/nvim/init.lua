@@ -209,23 +209,7 @@ require("lazy").setup({
 			require("output_panel").setup()
 		end
 	},
-	{
-		"nvim-tree/nvim-tree.lua",
-		config = function()
-			require("nvim-tree").setup({
-				filters = {
-					dotfiles = false,
-				}
-			})
-		end,
-		dependencies = {
-			"nvim-tree/nvim-web-devicons",
-		},
-		keys = {
-			{ "<leader>nn", "<cmd>NvimTreeToggle<cr>", desc = "Toggle Sidebar (NvimTree)" },
-			{ "<leader>nf", "<cmd>NvimFindFile<cr>",   desc = "Find File (NvimTree)" }
-		}
-	},
+	{ import = "plugins.nvim-tree" },
 	"nvim-tree/nvim-web-devicons",
 	{
 		"luckasRanarison/tailwind-tools.nvim",
