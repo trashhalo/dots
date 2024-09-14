@@ -3,7 +3,6 @@ vim.opt.relativenumber = true -- enable relative number
 vim.opt.background = "light"  -- set background to light
 vim.g.notimeout = true        -- disable timeout, which means that mappings will wait for the next key
 vim.g.nottimeout = true       -- disable ttimmeout, the differnce between timeout and ttimeout is that the latter is for keycodes that are part of a sequence
-vim.opt.mouse = "a"           -- enable mouse support, this helps with scrolling and resizing splits
 
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities.textDocument.foldingRange = {
@@ -756,13 +755,6 @@ require("lazy").setup({
 		},
 		config = function()
 		end
-	},
-	{
-		"m4xshen/hardtime.nvim",
-		dependencies = { "MunifTanjim/nui.nvim", "nvim-lua/plenary.nvim" },
-		opts = {
-			disabled_filetypes = { "spectre_panel", "oil", "qf", "help" }
-		},
 	},
 	{
 		'norcalli/nvim-colorizer.lua',
