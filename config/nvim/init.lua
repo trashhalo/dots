@@ -634,8 +634,6 @@ require("lazy").setup({
 			{ "<leader>sw", function() require("spectre").open_visual({ select_word = true }) end, "v",                                  desc = "Search current word (Spectre)" },
 
 		},
-		config = function()
-		end
 	},
 	{
 		"folke/trouble.nvim",
@@ -771,8 +769,6 @@ require("lazy").setup({
 		opts = {
 			disabled_filetypes = { "spectre_panel", "oil", "qf", "help" }
 		},
-		config = function()
-		end
 	},
 	{
 		'norcalli/nvim-colorizer.lua',
@@ -869,8 +865,6 @@ require("lazy").setup({
 		init = function()
 			vim.opt.conceallevel = 1
 		end,
-		config = function()
-		end
 	},
 	{
 		'akinsho/toggleterm.nvim',
