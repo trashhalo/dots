@@ -326,29 +326,7 @@ require("lazy").setup({
 	{ import = "plugins.lsp_signature" },
 	{ import = "plugins.flash" },
 	{ import = "plugins.nvim-colorizer" },
-	{
-		"chrisgrieser/nvim-spider",
-		lazy = true,
-		keys = {
-			{
-				"e",
-				"<cmd>lua require('spider').motion('e')<CR>",
-				mode = { "n", "o", "x" },
-			},
-			{
-				"b",
-				"<cmd>lua require('spider').motion('b')<CR>",
-				mode = { "n", "o", "x" },
-			},
-			{
-				"w",
-				"<cmd>lua require('spider').motion('w')<CR>",
-				mode = { "n", "o", "x" },
-			},
-		},
-		config = function()
-		end
-	},
+	{ import = "plugins.nvim-spider" },
 	{
 		'stevearc/oil.nvim',
 		opts = {},
