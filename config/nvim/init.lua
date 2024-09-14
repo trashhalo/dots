@@ -810,15 +810,7 @@ require("lazy").setup({
 			{ "<leader>11", "<cmd>ToggleTerm<cr>", desc = "Toggle Terminal" },
 		},
 	},
-	{
-		"willothy/flatten.nvim",
-		-- or pass configuration with
-		-- opts = {  }
-		-- Ensure that it runs first to minimize delay when opening file from terminal
-		lazy = false,
-		priority = 1001,
-		config = true
-	},
+	{ import = "plugins.flatten" },
 })
 
 local builtin = require('telescope.builtin')
