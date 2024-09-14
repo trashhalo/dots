@@ -4,9 +4,6 @@ vim.opt.background = "light"  -- set background to light
 vim.g.notimeout = true        -- disable timeout, which means that mappings will wait for the next key
 vim.g.nottimeout = true       -- disable ttimmeout, the differnce between timeout and ttimeout is that the latter is for keycodes that are part of a sequence
 vim.opt.mouse = "a"           -- enable mouse support, this helps with scrolling and resizing splits
-local function print_mouse_settings(plugin)
-	--print(plugin .. "  vim.opt.mouse = " .. vim.inspect(vim.opt.mouse:get()))
-end
 
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities.textDocument.foldingRange = {
@@ -64,7 +61,6 @@ require("lazy").setup({
 	{
 		"elentok/format-on-save.nvim",
 		config = function()
-			print_mouse_settings("format-on-save")
 			local format_on_save = require("format-on-save")
 			local formatters = require("format-on-save.formatters")
 			format_on_save.setup({
@@ -89,7 +85,6 @@ require("lazy").setup({
 			"hrsh7th/cmp-nvim-lsp-signature-help"
 		},
 		config = function()
-			print_mouse_settings("nvim-cmp")
 			local cmp = require("cmp")
 			local lspkind = require("lspkind")
 			local has_words_before = function()
@@ -167,7 +162,6 @@ require("lazy").setup({
 		'nvim-telescope/telescope-fzf-native.nvim',
 		build = 'make',
 		config = function()
-			print_mouse_settings("telescope-fzf-native")
 		end
 	},
 	{ 'nvim-telescope/telescope-ui-select.nvim' },
@@ -182,7 +176,6 @@ require("lazy").setup({
 			"folke/trouble.nvim"
 		},
 		config = function()
-			print_mouse_settings("telescope")
 			require("telescope").setup({
 				extensions = {
 					fzf = {
@@ -216,7 +209,6 @@ require("lazy").setup({
 		dependencies = { 'hrsh7th/cmp-nvim-lsp' },
 		event = 'InsertEnter',
 		config = function()
-			print_mouse_settings("nvim-cmp")
 		end
 	},
 	{
@@ -252,7 +244,6 @@ require("lazy").setup({
 			trace = "verbose",
 		},
 		config = function()
-			print_mouse_settings("copilot")
 		end
 	},
 	{
@@ -260,7 +251,6 @@ require("lazy").setup({
 		version = "0.16.0",
 		event = { "BufReadPre", "BufNewFile" },
 		config = function()
-			print_mouse_settings("elixir-tools")
 			local elixir = require("elixir")
 			local elixirls = require("elixir.elixirls")
 
@@ -293,7 +283,6 @@ require("lazy").setup({
 		"nvim-treesitter/nvim-treesitter",
 		enabled = true,
 		config = function()
-			print_mouse_settings("nvim-treesitter")
 			require("nvim-treesitter.configs").setup({
 				ensure_installed = { "elixir", "eex", "heex", "lua", "markdown", "yaml", "javascript", "typescript" },
 				highlight = { enable = true },
@@ -344,7 +333,6 @@ require("lazy").setup({
 		name = "catppuccin",
 		priority = 1000,
 		config = function()
-			print_mouse_settings("catppuccin")
 		end
 	},
 	{
@@ -352,7 +340,6 @@ require("lazy").setup({
 		lazy = false, -- make sure we load this during startup if it is your main colorscheme
 		priority = 1000, -- make sure to load this before all the other start plugins
 		config = function()
-			print_mouse_settings("modus-themes")
 			vim.opt.background = "light"
 			require("modus-themes").setup({
 				on_colors = function(colors)
@@ -574,7 +561,6 @@ require("lazy").setup({
 	{
 		"neovim/nvim-lspconfig",
 		config = function()
-			print_mouse_settings("nvim-lspconfig")
 			local lspconfig = require('lspconfig')
 			lspconfig.lua_ls.setup {
 				settings = {
@@ -611,14 +597,12 @@ require("lazy").setup({
 		"mhanberg/output-panel.nvim",
 		event = "VeryLazy",
 		config = function()
-			print_mouse_settings("output-panel")
 			require("output_panel").setup()
 		end
 	},
 	{
 		"nvim-tree/nvim-tree.lua",
 		config = function()
-			print_mouse_settings("nvim-tree")
 			require("nvim-tree").setup({
 				filters = {
 					dotfiles = false,
@@ -640,7 +624,6 @@ require("lazy").setup({
 			custom_filetypes = { "heex", "elixir", "eelixir" },
 		},
 		config = function()
-			print_mouse_settings("tailwind-tools")
 		end
 	},
 	{
@@ -652,7 +635,6 @@ require("lazy").setup({
 
 		},
 		config = function()
-			print_mouse_settings("spectre")
 		end
 	},
 	{
@@ -695,7 +677,6 @@ require("lazy").setup({
 			}
 		},
 		config = function()
-			print_mouse_settings("trouble")
 		end
 	},
 	{
@@ -710,7 +691,6 @@ require("lazy").setup({
 			"echasnovski/mini.icons"
 		},
 		config = function()
-			print_mouse_settings("which-key")
 			local wk = require("which-key")
 			wk.add({
 				{ "<leader>",  group = "Leader" },
@@ -730,7 +710,6 @@ require("lazy").setup({
 		version = "*", -- Use for stability; omit to use `main` branch for the latest features
 		event = "VeryLazy",
 		config = function()
-			print_mouse_settings("nvim-surround")
 			require("nvim-surround").setup({
 				-- Configuration here, or leave empty to use defaults
 			})
@@ -744,7 +723,6 @@ require("lazy").setup({
 		event = "VeryLazy",
 		opts = {},
 		config = function(_, opts)
-			print_mouse_settings("lsp_signature")
 			require 'lsp_signature'.setup(opts)
 		end
 	},
@@ -761,7 +739,6 @@ require("lazy").setup({
 			{ "<c-s>", mode = { "c" },           function() require("flash").toggle() end,            desc = "Toggle Flash Search" },
 		},
 		config = function()
-			print_mouse_settings("flash")
 			vim.api.nvim_set_hl(0, "FlashLabel", { bg = "#000000", fg = "#ffffff" })
 		end
 	},
@@ -786,7 +763,6 @@ require("lazy").setup({
 			},
 		},
 		config = function()
-			print_mouse_settings("spider")
 		end
 	},
 	{
@@ -796,13 +772,11 @@ require("lazy").setup({
 			disabled_filetypes = { "spectre_panel", "oil", "qf", "help" }
 		},
 		config = function()
-			print_mouse_settings("hardtime")
 		end
 	},
 	{
 		'norcalli/nvim-colorizer.lua',
 		config = function()
-			print_mouse_settings("colorizer")
 			require('colorizer').setup()
 		end
 	},
@@ -814,7 +788,6 @@ require("lazy").setup({
 			{ "-", "<cmd>Oil<cr>", desc = "Open Oil" },
 		},
 		config = function()
-			print_mouse_settings("oil")
 			require("oil").setup({
 				default_file_explorer = true,
 				delete_to_trash = true,
@@ -866,7 +839,6 @@ require("lazy").setup({
 			vim.g.vindent_count = 0
 		end,
 		config = function()
-			print_mouse_settings("vindent")
 		end
 	},
 	{
@@ -898,14 +870,12 @@ require("lazy").setup({
 			vim.opt.conceallevel = 1
 		end,
 		config = function()
-			print_mouse_settings("obsidian")
 		end
 	},
 	{
 		'akinsho/toggleterm.nvim',
 		version = "*",
 		config = function()
-			print_mouse_settings("toggleterm")
 			require("toggleterm").setup {}
 		end,
 		keys = {
@@ -923,7 +893,6 @@ require("lazy").setup({
 	},
 })
 
-print_mouse_settings("after lazy")
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>jp', builtin.find_files, { desc = "Find Files (Telescope)" })
 vim.keymap.set('n', '<leader>jg', builtin.git_status, { desc = "Git Status (Telescope)" })
