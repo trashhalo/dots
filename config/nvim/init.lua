@@ -325,6 +325,7 @@ require("lazy").setup({
 	},
 	{ import = "plugins.lsp_signature" },
 	{ import = "plugins.flash" },
+	{ import = "plugins.nvim-colorizer" },
 	{
 		"chrisgrieser/nvim-spider",
 		lazy = true,
@@ -346,12 +347,6 @@ require("lazy").setup({
 			},
 		},
 		config = function()
-		end
-	},
-	{
-		'norcalli/nvim-colorizer.lua',
-		config = function()
-			require('colorizer').setup()
 		end
 	},
 	{
