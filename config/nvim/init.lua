@@ -4,6 +4,9 @@ vim.opt.background = "light"  -- set background to light
 vim.g.notimeout = true        -- disable timeout, which means that mappings will wait for the next key
 vim.g.nottimeout = true       -- disable ttimmeout, the differnce between timeout and ttimeout is that the latter is for keycodes that are part of a sequence
 vim.opt.mouse = "a"           -- enable mouse support, this helps with scrolling and resizing splits
+local function print_mouse_settings(plugin)
+	--print(plugin .. "  vim.opt.mouse = " .. vim.inspect(vim.opt.mouse:get()))
+end
 
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities.textDocument.foldingRange = {
@@ -57,39 +60,11 @@ local changed_on_branch = function()
 	    :find()
 end
 
-local foldIcon = ''
-local hlgroup = 'NonText'
-local function foldTextFormatter(virtText, lnum, endLnum, width, truncate)
-	local newVirtText = {}
-	local suffix = '  ' .. foldIcon .. '  ' .. tostring(endLnum - lnum)
-	local sufWidth = vim.fn.strdisplaywidth(suffix)
-	local targetWidth = width - sufWidth
-	local curWidth = 0
-	for _, chunk in ipairs(virtText) do
-		local chunkText = chunk[1]
-		local chunkWidth = vim.fn.strdisplaywidth(chunkText)
-		if targetWidth > curWidth + chunkWidth then
-			table.insert(newVirtText, chunk)
-		else
-			chunkText = truncate(chunkText, targetWidth - curWidth)
-			local hlGroup = chunk[2]
-			table.insert(newVirtText, { chunkText, hlGroup })
-			chunkWidth = vim.fn.strdisplaywidth(chunkText)
-			if curWidth + chunkWidth < targetWidth then
-				suffix = suffix .. (' '):rep(targetWidth - curWidth - chunkWidth)
-			end
-			break
-		end
-		curWidth = curWidth + chunkWidth
-	end
-	table.insert(newVirtText, { suffix, hlgroup })
-	return newVirtText
-end
-
 require("lazy").setup({
 	{
 		"elentok/format-on-save.nvim",
 		config = function()
+			print_mouse_settings("format-on-save")
 			local format_on_save = require("format-on-save")
 			local formatters = require("format-on-save.formatters")
 			format_on_save.setup({
@@ -114,6 +89,7 @@ require("lazy").setup({
 			"hrsh7th/cmp-nvim-lsp-signature-help"
 		},
 		config = function()
+			print_mouse_settings("nvim-cmp")
 			local cmp = require("cmp")
 			local lspkind = require("lspkind")
 			local has_words_before = function()
@@ -187,7 +163,13 @@ require("lazy").setup({
 			})
 		end,
 	},
-	{ 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
+	{
+		'nvim-telescope/telescope-fzf-native.nvim',
+		build = 'make',
+		config = function()
+			print_mouse_settings("telescope-fzf-native")
+		end
+	},
 	{ 'nvim-telescope/telescope-ui-select.nvim' },
 	{
 		"nvim-telescope/telescope.nvim",
@@ -200,6 +182,7 @@ require("lazy").setup({
 			"folke/trouble.nvim"
 		},
 		config = function()
+			print_mouse_settings("telescope")
 			require("telescope").setup({
 				extensions = {
 					fzf = {
@@ -232,6 +215,9 @@ require("lazy").setup({
 		'hrsh7th/nvim-cmp',
 		dependencies = { 'hrsh7th/cmp-nvim-lsp' },
 		event = 'InsertEnter',
+		config = function()
+			print_mouse_settings("nvim-cmp")
+		end
 	},
 	{
 		"zbirenbaum/copilot.lua",
@@ -264,13 +250,17 @@ require("lazy").setup({
 		},
 		server_opts_overrides = {
 			trace = "verbose",
-		}
+		},
+		config = function()
+			print_mouse_settings("copilot")
+		end
 	},
 	{
 		"elixir-tools/elixir-tools.nvim",
 		version = "0.16.0",
 		event = { "BufReadPre", "BufNewFile" },
 		config = function()
+			print_mouse_settings("elixir-tools")
 			local elixir = require("elixir")
 			local elixirls = require("elixir.elixirls")
 
@@ -303,6 +293,7 @@ require("lazy").setup({
 		"nvim-treesitter/nvim-treesitter",
 		enabled = true,
 		config = function()
+			print_mouse_settings("nvim-treesitter")
 			require("nvim-treesitter.configs").setup({
 				ensure_installed = { "elixir", "eex", "heex", "lua", "markdown", "yaml", "javascript", "typescript" },
 				highlight = { enable = true },
@@ -353,6 +344,7 @@ require("lazy").setup({
 		name = "catppuccin",
 		priority = 1000,
 		config = function()
+			print_mouse_settings("catppuccin")
 		end
 	},
 	{
@@ -360,6 +352,7 @@ require("lazy").setup({
 		lazy = false, -- make sure we load this during startup if it is your main colorscheme
 		priority = 1000, -- make sure to load this before all the other start plugins
 		config = function()
+			print_mouse_settings("modus-themes")
 			vim.opt.background = "light"
 			require("modus-themes").setup({
 				on_colors = function(colors)
@@ -478,7 +471,11 @@ require("lazy").setup({
 					highlight.DiagnosticVirtualTextHint = { fg = color.green, bold = true }
 
 					highlight.DiagnosticUnderlineError = { undercurl = true, sp = color.red }
-					highlight.DiagnosticUnderlineWarn = { undercurl = true, sp = color.yellow }
+					highlight.DiagnosticUnderlineWarn = {
+						undercurl = true,
+						sp = color
+						    .yellow
+					}
 					highlight.DiagnosticUnderlineInfo = { undercurl = true, sp = color.blue }
 					highlight.DiagnosticUnderlineHint = { undercurl = true, sp = color.green }
 
@@ -577,6 +574,7 @@ require("lazy").setup({
 	{
 		"neovim/nvim-lspconfig",
 		config = function()
+			print_mouse_settings("nvim-lspconfig")
 			local lspconfig = require('lspconfig')
 			lspconfig.lua_ls.setup {
 				settings = {
@@ -613,12 +611,14 @@ require("lazy").setup({
 		"mhanberg/output-panel.nvim",
 		event = "VeryLazy",
 		config = function()
+			print_mouse_settings("output-panel")
 			require("output_panel").setup()
 		end
 	},
 	{
 		"nvim-tree/nvim-tree.lua",
 		config = function()
+			print_mouse_settings("nvim-tree")
 			require("nvim-tree").setup({
 				filters = {
 					dotfiles = false,
@@ -638,7 +638,10 @@ require("lazy").setup({
 		"luckasRanarison/tailwind-tools.nvim",
 		opts = {
 			custom_filetypes = { "heex", "elixir", "eelixir" },
-		}
+		},
+		config = function()
+			print_mouse_settings("tailwind-tools")
+		end
 	},
 	{
 		"nvim-pack/nvim-spectre",
@@ -648,6 +651,9 @@ require("lazy").setup({
 			{ "<leader>sw", function() require("spectre").open_visual({ select_word = true }) end, "v",                                  desc = "Search current word (Spectre)" },
 
 		},
+		config = function()
+			print_mouse_settings("spectre")
+		end
 	},
 	{
 		"folke/trouble.nvim",
@@ -688,6 +694,9 @@ require("lazy").setup({
 				desc = "Quickfix List (Trouble)",
 			}
 		},
+		config = function()
+			print_mouse_settings("trouble")
+		end
 	},
 	{
 		"folke/which-key.nvim",
@@ -701,6 +710,7 @@ require("lazy").setup({
 			"echasnovski/mini.icons"
 		},
 		config = function()
+			print_mouse_settings("which-key")
 			local wk = require("which-key")
 			wk.add({
 				{ "<leader>",  group = "Leader" },
@@ -720,6 +730,7 @@ require("lazy").setup({
 		version = "*", -- Use for stability; omit to use `main` branch for the latest features
 		event = "VeryLazy",
 		config = function()
+			print_mouse_settings("nvim-surround")
 			require("nvim-surround").setup({
 				-- Configuration here, or leave empty to use defaults
 			})
@@ -729,87 +740,13 @@ require("lazy").setup({
 		}
 	},
 	{
-		"chrisgrieser/nvim-origami",
-		event = "BufReadPost", -- later or on keypress would prevent saving folds
-		opts = {}, -- needed even when using default config
-	},
-	{
-		'kevinhwang91/nvim-ufo',
-		dependencies = 'kevinhwang91/promise-async',
-		event = 'BufReadPost', -- needed for folds to load in time
-		keys = {
-			{
-				'zr',
-				function()
-					require('ufo').openFoldsExceptKinds({ 'imports', 'comment' })
-				end,
-				desc = ' 󱃄 Open All Folds except comments',
-			},
-			{
-				'zm',
-				function()
-					require('ufo').closeAllFolds()
-				end,
-				desc = ' 󱃄 Close All Folds',
-			},
-			{
-				'z1',
-				function()
-					require('ufo').closeFoldsWith(1)
-				end,
-				desc = ' 󱃄 Close L1 Folds',
-			},
-			{
-				'z2',
-				function()
-					require('ufo').closeFoldsWith(2)
-				end,
-				desc = ' 󱃄 Close L2 Folds',
-			},
-			{
-				'z3',
-				function()
-					require('ufo').closeFoldsWith(3)
-				end,
-				desc = ' 󱃄 Close L3 Folds',
-			},
-			{
-				'z4',
-				function()
-					require('ufo').closeFoldsWith(4)
-				end,
-				desc = ' 󱃄 Close L4 Folds',
-			},
-		},
-		init = function()
-			-- INFO fold commands usually change the foldlevel, which fixes folds, e.g.
-			-- auto-closing them after leaving insert mode, however ufo does not seem to
-			-- have equivalents for zr and zm because there is no saved fold level.
-			-- Consequently, the vim-internal fold levels need to be disabled by setting
-			-- them to 99
-			vim.opt.foldlevel = 99
-			vim.opt.foldlevelstart = 99
-		end,
-		opts = {
-			provider_selector = function(_, ft, _)
-				-- INFO some filetypes only allow indent, some only LSP, some only
-				-- treesitter. However, ufo only accepts two kinds as priority,
-				-- therefore making this function necessary :/
-				local lspWithOutFolding = { 'markdown', 'sh', 'css', 'html', 'python' }
-				if vim.tbl_contains(lspWithOutFolding, ft) then
-					return { 'treesitter', 'indent' }
-				end
-				return { 'lsp', 'indent' }
-			end,
-			open_fold_hl_timeout = 800,
-			fold_virt_text_handler = foldTextFormatter,
-		},
-	},
-	{
 		"ray-x/lsp_signature.nvim",
 		event = "VeryLazy",
 		opts = {},
-		config = function(_, opts) require 'lsp_signature'.setup(opts) end
+		config = function(_, opts)
+			print_mouse_settings("lsp_signature")
+			require 'lsp_signature'.setup(opts)
+		end
 	},
 	{
 		"folke/flash.nvim",
@@ -824,6 +761,7 @@ require("lazy").setup({
 			{ "<c-s>", mode = { "c" },           function() require("flash").toggle() end,            desc = "Toggle Flash Search" },
 		},
 		config = function()
+			print_mouse_settings("flash")
 			vim.api.nvim_set_hl(0, "FlashLabel", { bg = "#000000", fg = "#ffffff" })
 		end
 	},
@@ -846,18 +784,25 @@ require("lazy").setup({
 				"<cmd>lua require('spider').motion('w')<CR>",
 				mode = { "n", "o", "x" },
 			},
-		}
+		},
+		config = function()
+			print_mouse_settings("spider")
+		end
 	},
 	{
 		"m4xshen/hardtime.nvim",
 		dependencies = { "MunifTanjim/nui.nvim", "nvim-lua/plenary.nvim" },
 		opts = {
 			disabled_filetypes = { "spectre_panel", "oil", "qf", "help" }
-		}
+		},
+		config = function()
+			print_mouse_settings("hardtime")
+		end
 	},
 	{
 		'norcalli/nvim-colorizer.lua',
 		config = function()
+			print_mouse_settings("colorizer")
 			require('colorizer').setup()
 		end
 	},
@@ -869,6 +814,7 @@ require("lazy").setup({
 			{ "-", "<cmd>Oil<cr>", desc = "Open Oil" },
 		},
 		config = function()
+			print_mouse_settings("oil")
 			require("oil").setup({
 				default_file_explorer = true,
 				delete_to_trash = true,
@@ -919,6 +865,9 @@ require("lazy").setup({
 			vim.g.vindent_begin = 1
 			vim.g.vindent_count = 0
 		end,
+		config = function()
+			print_mouse_settings("vindent")
+		end
 	},
 	{
 		"epwalsh/obsidian.nvim",
@@ -947,12 +896,16 @@ require("lazy").setup({
 		},
 		init = function()
 			vim.opt.conceallevel = 1
+		end,
+		config = function()
+			print_mouse_settings("obsidian")
 		end
 	},
 	{
 		'akinsho/toggleterm.nvim',
 		version = "*",
 		config = function()
+			print_mouse_settings("toggleterm")
 			require("toggleterm").setup {}
 		end,
 		keys = {
@@ -961,14 +914,16 @@ require("lazy").setup({
 	},
 	{
 		"willothy/flatten.nvim",
-		config = true,
 		-- or pass configuration with
 		-- opts = {  }
 		-- Ensure that it runs first to minimize delay when opening file from terminal
 		lazy = false,
 		priority = 1001,
+		config = true
 	},
 })
+
+print_mouse_settings("after lazy")
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>jp', builtin.find_files, { desc = "Find Files (Telescope)" })
 vim.keymap.set('n', '<leader>jg', builtin.git_status, { desc = "Git Status (Telescope)" })
