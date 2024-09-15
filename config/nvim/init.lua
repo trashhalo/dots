@@ -23,86 +23,10 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
-local changed_on_branch = function()
-	local previewers = require("telescope.previewers")
-	local pickers = require("telescope.pickers")
-	local sorters = require("telescope.sorters")
-	local finders = require("telescope.finders")
-	pickers
-	    .new({}, {
-		    results_title = "Modified in current branch",
-		    finder = finders.new_oneshot_job({
-			    "git",
-			    "diff",
-			    "--relative",
-			    "--name-only",
-			    "--diff-filter=ACMR",
-			    "origin...",
-		    }, {}),
-		    sorter = sorters.get_fuzzy_file(),
-		    previewer = previewers.new_termopen_previewer({
-			    get_command = function(entry)
-				    return {
-					    "git",
-					    "diff",
-					    "--diff-filter=ACMR",
-					    "origin...",
-					    "--",
-					    entry.value,
-				    }
-			    end,
-		    }),
-	    })
-	    :find()
-end
-
 require("lazy").setup({
 	{ import = "plugins.format-on-save" },
 	{ import = "plugins.nvim-cmp" },
-	{
-		'nvim-telescope/telescope-fzf-native.nvim',
-		build = 'make',
-	},
-	{ 'nvim-telescope/telescope-ui-select.nvim' },
-	{
-		"nvim-telescope/telescope.nvim",
-		tag = '0.1.4',
-		dependencies = {
-			"nvim-lua/plenary.nvim",
-			"nvim-treesitter/nvim-treesitter",
-			"nvim-tree/nvim-web-devicons",
-			"smartpde/telescope-recent-files",
-			"folke/trouble.nvim"
-		},
-		config = function()
-			require("telescope").setup({
-				extensions = {
-					fzf = {
-						fuzzy = true, -- false will only do exact matching
-						override_generic_sorter = true, -- override the generic sorter
-						override_file_sorter = true, -- override the file sorter
-						case_mode = "smart_case", -- or "ignore_case" or "respect_case"
-						-- the default case_mode is "smart_case"
-					}
-				},
-				defaults = {
-					mappings = {
-						i = { ["<c-y>"] = require('trouble.sources.telescope').open },
-						n = { ["<c-y>"] = require('trouble.sources.telescope').open },
-					},
-				},
-			})
-
-			-- To get fzf loaded and working with telescope, you need to call
-			-- load_extension, somewhere after setup function:
-			require('telescope').load_extension('fzf')
-
-			-- To get ui-select loaded and working with telescope, you need to call
-			-- load_extension, somewhere after setup function:
-			require("telescope").load_extension("ui-select")
-			require("telescope").load_extension("recent_files")
-		end,
-	},
+	{ import = "plugins.telescope" },
 	{
 		'hrsh7th/nvim-cmp',
 		dependencies = { 'hrsh7th/cmp-nvim-lsp' },
@@ -280,15 +204,6 @@ require("lazy").setup({
 	{ import = "plugins.flatten" },
 })
 
-local builtin = require('telescope.builtin')
-vim.keymap.set('n', '<leader>jp', builtin.find_files, { desc = "Find Files (Telescope)" })
-vim.keymap.set('n', '<leader>jg', builtin.git_status, { desc = "Git Status (Telescope)" })
-vim.keymap.set('n', '<leader>jk', builtin.keymaps, { desc = "Keymaps (Telescope)" })
-vim.keymap.set('n', '<leader>jm', function()
-	builtin.lsp_document_symbols({ symbols = { "Function", "Method", "Field", "Variable" } })
-end, { desc = "Document Symbols (Telescope)" })
-vim.keymap.set('n', '<leader>jb', changed_on_branch, { desc = "Changed on Branch (Telescope)" })
-vim.keymap.set('n', '<leader>jc', builtin.commands, { desc = "Commands (Telescope)" })
 local trouble = require("trouble")
 vim.keymap.set("n", "gd", function() trouble.open({ mode = "lsp_definitions" }) end,
 	{ desc = "🔭 Definitions" })
@@ -296,9 +211,9 @@ vim.keymap.set("n", "gi", function() trouble.open({ mode = "lsp_implementations"
 	{ desc = "🔭 Implementations" })
 vim.keymap.set("n", "gR", function() trouble.open({ mode = "lsp_references" }) end,
 	{ desc = "🔭 References" })
-vim.api.nvim_set_keymap("n", "<Leader><Leader>",
-	[[<cmd>lua require('telescope').extensions.recent_files.pick()<CR>]],
-	{ noremap = true, silent = true, desc = "Recent Files (Telescope)" })
+
+-- Call the setup function for Telescope
+require("plugins.telescope").setup()
 
 -- add keymaps for tabs
 vim.keymap.set("n", "<leader>tn", ":tabnew<cr>", { desc = "New Tab" })
