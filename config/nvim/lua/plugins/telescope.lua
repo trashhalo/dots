@@ -39,7 +39,8 @@ return {
         "nvim-treesitter/nvim-treesitter",
         "nvim-tree/nvim-web-devicons",
         "smartpde/telescope-recent-files",
-        "folke/trouble.nvim"
+        "folke/trouble.nvim",
+        { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' }
     },
     config = function()
         require("telescope").setup({
@@ -59,7 +60,7 @@ return {
             },
         })
 
-        require('telescope').load_extension('fzf')
+        -- require('telescope').load_extension('fzf')  -- Commented out until properly set up
         require("telescope").load_extension("ui-select")
         require("telescope").load_extension("recent_files")
     end,
