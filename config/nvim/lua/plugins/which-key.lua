@@ -25,15 +25,13 @@ return {
         
         -- Tab keymaps
         wk.register({
-            ["<leader>t"] = {
-                n = { ":tabnew<cr>", "New Tab" },
-                c = { ":tabclose<cr>", "Close Tab" },
-                o = { ":tabonly<cr>", "Close Other Tabs" },
-            },
-            ["[t"] = { ":tabprevious<cr>", "Previous Tab" },
-            ["]t"] = { ":tabnext<cr>", "Next Tab" },
-            ["<A-<>"] = { ":tabmove -1<cr>", "Move Tab Left" },
-            ["<A->>"] = { ":tabmove +1<cr>", "Move Tab Right" },
+            { "<leader>tn", ":tabnew<cr>", desc = "New Tab" },
+            { "<leader>tc", ":tabclose<cr>", desc = "Close Tab" },
+            { "<leader>to", ":tabonly<cr>", desc = "Close Other Tabs" },
+            { "[t", ":tabprevious<cr>", desc = "Previous Tab" },
+            { "]t", ":tabnext<cr>", desc = "Next Tab" },
+            { "<A-<>", ":tabmove -1<cr>", desc = "Move Tab Left" },
+            { "<A->>", ":tabmove +1<cr>", desc = "Move Tab Right" },
         })
         
         -- Terminal escape keymap
