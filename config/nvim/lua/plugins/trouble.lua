@@ -35,7 +35,28 @@ return {
 			"<leader>xq",
 			"<cmd>Trouble qflist toggle<cr>",
 			desc = "Quickfix List (Trouble)",
-		}
+		},
+		{
+			"gd",
+			function()
+				require("trouble").open({ mode = "lsp_definitions" })
+			end,
+			desc = "🔭 Definitions"
+		},
+		{
+			"gi",
+			function()
+				require("trouble").open({ mode = "lsp_implementations" })
+			end,
+			desc = "🔭 Implementations"
+		},
+		{
+			"gR",
+			function()
+				require("trouble").open({ mode = "lsp_references" })
+			end,
+			desc = "🔭 References"
+		},
 	},
 	config = function()
 	end
