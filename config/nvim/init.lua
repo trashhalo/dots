@@ -157,12 +157,7 @@ require("lazy").setup({
 	{ import = "plugins.output-panel" },
 	{ import = "plugins.nvim-tree" },
 	"nvim-tree/nvim-web-devicons",
-	{
-		"luckasRanarison/tailwind-tools.nvim",
-		opts = {
-			custom_filetypes = { "heex", "elixir", "eelixir" },
-		},
-	},
+	{ import = "plugins.tailwind-tools" },
 	{
 		"nvim-pack/nvim-spectre",
 		keys = {
