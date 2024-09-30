@@ -2,3 +2,4 @@ just
 elixir-ls*
 lua-*
 neovim/
+.config/nvim/direnv/

@@ -53,3 +53,6 @@ uninstall:
     rm -rf ~/.config/nvim
     rm -rf ~/.config/tmux
     rm -rf {{justfile_directory()}}/neovim
+
+stow:
+    stow -t ~ .
