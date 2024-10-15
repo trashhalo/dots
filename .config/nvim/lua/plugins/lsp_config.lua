@@ -8,7 +8,6 @@ return {
 	"neovim/nvim-lspconfig",
 	config = function()
 		local lspconfig = require('lspconfig')
-		local util = require('lspconfig.util')
 		lspconfig.lua_ls.setup {
 			settings = {
 				Lua = {
@@ -35,15 +34,16 @@ return {
 				}
 			}
 		}
-		lspconfig.lexical.setup {
-			cmd = { "/Users/stephensolka/dev/lexical/_build/dev/package/lexical/bin/start_lexical.sh" },
-			root_dir = function(fname)
-				return util.root_pattern("mix.exs", ".git")(fname) or vim.loop.cwd()
-			end,
-			filetypes = { "elixir", "eelixir", "heex" },
-			-- optional settings
-			settings = {}
+		lspconfig.elixirls.setup {
+			cmd = { "/opt/homebrew/bin/elixir-ls" },
+			settings = {
+				dializerEnabled = false,
+				fetchDeps = true,
+				enableTestLenses = false,
+				suggestSpecs = false
+			}
 		}
 		lspconfig.ts_ls.setup {}
+		lspconfig.tailwindcss.setup {}
 	end
 }
