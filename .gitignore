@@ -2,3 +2,6 @@ just
 elixir-ls*
 lua-*
 neovim/
+lazy
+kitty-themes
+direnv/allow
