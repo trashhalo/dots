@@ -34,15 +34,6 @@ return {
 				}
 			}
 		}
-		lspconfig.elixirls.setup {
-			cmd = { "/opt/homebrew/bin/elixir-ls" },
-			settings = {
-				dializerEnabled = false,
-				fetchDeps = true,
-				enableTestLenses = false,
-				suggestSpecs = false
-			}
-		}
 		lspconfig.ts_ls.setup {}
 		lspconfig.tailwindcss.setup {}
 	end
