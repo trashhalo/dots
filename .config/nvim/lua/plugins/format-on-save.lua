@@ -8,6 +8,7 @@ return {
 				elixir = formatters.lsp,
 				lua = formatters.lsp,
 				typescript = formatters.prettierd,
+				javascript = formatters.prettierd,
 			},
 			experiments = {
 				partial_update = 'diff'

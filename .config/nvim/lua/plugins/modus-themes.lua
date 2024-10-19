@@ -3,7 +3,7 @@ return {
 	lazy = false, -- make sure we load this during startup if it is your main colorscheme
 	priority = 1000, -- make sure to load this before all the other start plugins
 	config = function()
-		vim.opt.background = "light"
+		-- vim.opt.background = "light"
 		require("modus-themes").setup({
 			on_colors = function(colors)
 				-- Light background to match the map
@@ -217,6 +217,6 @@ return {
 				highlight["@punctuation.delimiter.yaml"] = { fg = color.pink, bold = true }
 			end
 		})
-		vim.cmd("colorscheme modus")
+		--vim.cmd("colorscheme modus")
 	end,
 }
