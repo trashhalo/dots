@@ -7,6 +7,7 @@ end
 fish_add_path $HOME/.local/bin
 fish_add_path $HOME/.pyenv/shims
 export EDITOR=/opt/homebrew/bin/nvim
+set -x PYTHONPATH $HOME/.local/lib/python $PYTHONPATH
 export ERL_AFLAGS="-kernel shell_history enabled"
 source /opt/homebrew/opt/asdf/libexec/asdf.fish
 source "$(brew --prefix)/share/google-cloud-sdk/path.fish.inc"
