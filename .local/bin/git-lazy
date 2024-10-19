@@ -6,6 +6,21 @@ if [ -z "$ANTHROPIC_API_KEY" ]; then
     exit 1
 fi
 
+# Check if yq is installed
+if ! command -v yq &> /dev/null; then
+    echo "Error: yq is not installed. Please install it to use this script."
+    exit 1
+fi
+
+# Parse command line arguments
+use_smart_model=false
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --smart) use_smart_model=true; shift ;;
+        *) echo "Unknown parameter: $1"; exit 1 ;;
+    esac
+done
+
 # Check if there are any staged files
 if [ -z "$(git diff --cached --name-only)" ]; then
     echo "Error: No staged files found. Please stage your changes before running this command."
@@ -16,49 +31,115 @@ fi
 call_anthropic_api() {
     local prompt="$1"
     local diff="$2"
+    local model="claude-3-haiku-20240307"
     
-    response=$(curl -s https://api.anthropic.com/v1/messages \
-        -H "Content-Type: application/json" \
-        -H "x-api-key: $ANTHROPIC_API_KEY" \
-        -H "anthropic-version: 2023-06-01" \
-        -d '{
-            "model": "claude-3-haiku-20240307",
-            "max_tokens": 1000,
-            "messages": [
+    if [ "$use_smart_model" = true ]; then
+        model="claude-3-sonnet-20240320"
+    fi
+    
+    payload=$(jq -n \
+        --arg model "$model" \
+        --arg prompt "$prompt" \
+        --arg diff "$diff" \
+        '{
+            model: $model,
+            max_tokens: 1000,
+            messages: [
                 {
-                    "role": "user",
-                    "content": "'"${prompt//\"/\\\"}"'\n\nHere are the changes:\n```\n'"${diff//\"/\\\"}"'\n```"
+                    role: "user",
+                    content: ($prompt + "\n\nHere are the changes:\n```\n" + $diff + "\n```")
                 }
             ]
         }')
     
-    echo "$response" | jq -r '.content[0].text'
+    response=$(curl -s -w "\n%{http_code}" https://api.anthropic.com/v1/messages \
+        -H "Content-Type: application/json" \
+        -H "x-api-key: $ANTHROPIC_API_KEY" \
+        -H "anthropic-version: 2023-06-01" \
+        -d "$payload")
+    
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | sed '$d')
+    
+    if [ "$http_code" != "200" ]; then
+        echo "Error: API request failed with status code $http_code" >&2
+        echo "Response body: $body" >&2
+        exit 1
+    fi
+    
+    echo "$body" | jq -r '.content[0].text'
 }
 
-# Generate branch name
-branch_prompt="Review these changes and suggest a branch name. The name of the branch should be in a <branch></branch> XML tag. Before responding, you may also think through this question. Place your thoughts in a <thought></thought> XML tag.
+# Generate branch name and commit message
+combined_prompt="Review these changes and suggest both a branch name and a commit message. The branch name should be in a <branch></branch> XML tag, and the commit message should be in a <commit></commit> XML tag. Before responding, you may also think through this task. Place your thoughts in a <thought></thought> XML tag.
 
 Example branch names:
 <branch>feature/add-new-feature</branch>
 <branch>bugfix/fix-bug</branch>
-<branch>refactor/refactor-code</branch>"
+<branch>refactor/refactor-code</branch>
 
-branch_name_text=$(call_anthropic_api "$branch_prompt" "$(git diff --cached)")
-echo -e "Branch name suggestion:\n$branch_name_text"
+The first line of the commit message will be the title of the pull request."
+
+combined_response=$(call_anthropic_api "$combined_prompt" "$(git diff --cached)")
+echo -e "AI suggestions:\n$combined_response"
 
 # Extract branch name from XML tags
-branch_name=$(echo "$branch_name_text" | sed -n 's/.*<branch>\(.*\)<\/branch>.*/\1/p')
+suggested_branch_name=$(echo "$combined_response" | yq -p xml '.branch')
+
+# Create a temporary file for editing branch name
+temp_branch_file=$(mktemp)
+echo "$suggested_branch_name" > "$temp_branch_file"
+echo "" >> "$temp_branch_file"
+echo "# Edit the branch name above. Lines starting with '#' will be ignored." >> "$temp_branch_file"
+echo "#" >> "$temp_branch_file"
+echo "# Full AI response (for reference):" >> "$temp_branch_file"
+echo "# $combined_response" | sed 's/^/# /' >> "$temp_branch_file"
+
+# Open editor for user to modify branch name
+${EDITOR:-vim} "$temp_branch_file"
+
+# Read the first non-empty, non-comment line as the branch name
+branch_name=$(grep -v '^#' "$temp_branch_file" | sed '/^\s*$/d' | head -n 1)
+rm "$temp_branch_file"
+
+# Check if branch name is empty
+if [ -z "$branch_name" ]; then
+    echo "Error: Branch name cannot be empty. Aborting."
+    exit 1
+fi
+
 git checkout -b "$branch_name"
 
-# Generate commit message
-commit_prompt="Review these changes and suggest a commit message. The message should be in a <commit></commit> XML tag. Before responding, you may also think through this question. Place your thoughts in a <thought></thought> XML tag. The first line of the commit message will be the title of the pull request."
-
-commit_message_text=$(call_anthropic_api "$commit_prompt" "$(git diff --cached)")
-echo -e "Commit message suggestion:\n$commit_message_text"
-
 # Extract commit message from XML tags
-commit_message=$(echo "$commit_message_text" | sed -n 's/.*<commit>\(.*\)<\/commit>.*/\1/p')
-git commit -m "$commit_message"
+suggested_commit_message=$(echo "$combined_response" | yq -p xml '.commit')
+
+# Create a temporary file for editing commit message
+temp_commit_file=$(mktemp)
+echo "$suggested_commit_message" > "$temp_commit_file"
+echo "" >> "$temp_commit_file"
+echo "# Edit the commit message above. Lines starting with '#' will be ignored." >> "$temp_commit_file"
+echo "#" >> "$temp_commit_file"
+echo "# Full AI response (for reference):" >> "$temp_commit_file"
+echo "# $combined_response" | sed 's/^/# /' >> "$temp_commit_file"
+
+# Open editor for user to modify commit message
+${EDITOR:-vim} "$temp_commit_file"
+
+# Read the commit message, excluding lines starting with #
+commit_message=$(grep -v '^#' "$temp_commit_file" | sed '/^\s*$/d')
+rm "$temp_commit_file"
+
+# Check if commit message is empty
+if [ -z "$commit_message" ]; then
+    echo "Error: Commit message cannot be empty. Aborting."
+    exit 1
+fi
+
+# Use the first line as the commit title and the rest as the body
+commit_title=$(echo "$commit_message" | head -n 1)
+commit_body=$(echo "$commit_message" | tail -n +2)
+
+git commit -m "$commit_title" -m "$commit_body"
 
 # Create and merge PR
 gh pr create --fill && gh pr merge --auto --squash
