@@ -1,0 +1,122 @@
+#!/bin/bash
+set -e
+
+# Allow overriding where the request is sent
+ANTHROPIC_ENDPOINT=${ANTHROPIC_ENDPOINT:-https://api.anthropic.com}
+
+# Check if ANTHROPIC_API_KEY is set
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "Error: ANTHROPIC_API_KEY is not set. Please set it in your environment."
+    exit 1
+fi
+
+# Check if there are any staged files
+if [ -z "$(git diff --cached --name-only)" ]; then
+    echo "Error: No staged files found. Please stage your changes before running this command."
+    exit 1
+fi
+
+# Function to call Anthropic API
+call_anthropic_api() {
+    local system_prompt="$1"
+    local user_prompt="$2"
+    
+    response=$(
+	jq -n \
+	--arg model "claude-3-haiku-20240307" \
+	--arg max_tokens 1000 \
+	--arg system "$system_prompt" \
+	--arg user "$user_prompt" \
+	'{
+		"model": $model,
+		"max_tokens": $max_tokens|tonumber,
+		"system": $system,
+		"messages": [
+			{
+				"role": "user",
+				"content": $user
+			}
+		]
+	}' | \
+    	curl -s $ANTHROPIC_ENDPOINT/v1/messages \
+        -H "Content-Type: application/json" \
+        -H "x-api-key: $ANTHROPIC_API_KEY" \
+        -H "anthropic-version: 2023-06-01" \
+	-d @-
+    )	
+    
+    echo "$response" | jq -r '.content[0].text'
+}
+
+# Get current branch name
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Prepare the combined system prompt and user prompt
+combined_system_prompt="Review these changes and provide two suggestions:
+1. A branch name (if on main or master branch). The name of the branch should be in a <branch></branch> XML tag.
+2. A commit message. The message should be in a <commit></commit> XML tag.
+
+Before responding, you may also think through each suggestion. Place your thoughts in <thought></thought> XML tags.
+
+Example branch names:
+<branch>feature/add-new-feature</branch>
+<branch>bugfix/fix-bug</branch>
+<branch>refactor/refactor-code</branch>
+
+The first line of the commit message will be the title of the pull request.
+The changes will be enclosed in a <diff></diff> XML tag."
+
+combined_user_prompt="Here are the changes to review:
+<diff>
+$(git diff --cached)
+</diff>
+
+Current branch: $current_branch"
+
+# Call the API with combined prompts
+response_text=$(call_anthropic_api "$combined_system_prompt" "$combined_user_prompt")
+echo -e "API Response:\n$response_text"
+
+# Extract branch name if on main or master
+if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
+    branch_name=$(echo "$response_text" | sed -n 's/.*<branch>\(.*\)<\/branch>.*/\1/p')
+    if [ -n "$branch_name" ]; then
+        echo -e "Branch name suggestion:\n$branch_name"
+        temp_branch_file=$(mktemp)
+        echo "$branch_name" > "$temp_branch_file"
+        nvim "$temp_branch_file"
+        if [ $? -eq 0 ]; then
+            branch_name=$(cat "$temp_branch_file")
+            rm "$temp_branch_file"
+            git checkout -b "$branch_name"
+        else
+            rm "$temp_branch_file"
+            echo "Branch creation aborted."
+            exit 1
+        fi
+    else
+        echo "No branch name suggested. Staying on current branch."
+    fi
+else
+    echo "Not on main or master branch. Skipping branch creation."
+fi
+
+# Extract commit message
+commit_message=$(echo "$response_text" | sed -n 's/.*<commit>\(.*\)<\/commit>.*/\1/p')
+temp_commit_file=$(mktemp)
+echo "$commit_message" > "$temp_commit_file"
+nvim "$temp_commit_file"
+if [ $? -eq 0 ]; then
+    commit_message=$(cat "$temp_commit_file")
+    rm "$temp_commit_file"
+    git commit -m "$commit_message"
+else
+    rm "$temp_commit_file"
+    echo "Commit aborted."
+    exit 1
+fi
+
+# Create and merge PR
+gh pr create --fill && gh pr merge --auto --squash
+
+echo "Lazy git process completed successfully!"
