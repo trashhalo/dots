@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Check if ANTHROPIC_API_KEY is set
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "Error: ANTHROPIC_API_KEY is not set. Please set it in your environment."
+    exit 1
+fi
+
+# Check if there are any staged files
+if [ -z "$(git diff --cached --name-only)" ]; then
+    echo "Error: No staged files found. Please stage your changes before running this command."
+    exit 1
+fi
+
+# Function to call Anthropic API
+call_anthropic_api() {
+    local prompt="$1"
+    local diff="$2"
+    
+    response=$(curl -s https://api.anthropic.com/v1/messages \
+        -H "Content-Type: application/json" \
+        -H "x-api-key: $ANTHROPIC_API_KEY" \
+        -H "anthropic-version: 2023-06-01" \
+        -d '{
+            "model": "claude-3-haiku-20240307",
+            "max_tokens": 1000,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "'"${prompt//\"/\\\"}"'\n\nHere are the changes:\n```\n'"${diff//\"/\\\"}"'\n```"
+                }
+            ]
+        }')
+    
+    echo "$response" | jq -r '.content[0].text'
+}
+
+# Generate branch name
+branch_prompt="Review these changes and suggest a branch name. The name of the branch should be in a <branch></branch> XML tag. Before responding, you may also think through this question. Place your thoughts in a <thought></thought> XML tag.
+
+Example branch names:
+<branch>feature/add-new-feature</branch>
+<branch>bugfix/fix-bug</branch>
+<branch>refactor/refactor-code</branch>"
+
+branch_name_text=$(call_anthropic_api "$branch_prompt" "$(git diff --cached)")
+echo -e "Branch name suggestion:\n$branch_name_text"
+
+# Extract branch name from XML tags
+branch_name=$(echo "$branch_name_text" | sed -n 's/.*<branch>\(.*\)<\/branch>.*/\1/p')
+git checkout -b "$branch_name"
+
+# Generate commit message
+commit_prompt="Review these changes and suggest a commit message. The message should be in a <commit></commit> XML tag. Before responding, you may also think through this question. Place your thoughts in a <thought></thought> XML tag. The first line of the commit message will be the title of the pull request."
+
+commit_message_text=$(call_anthropic_api "$commit_prompt" "$(git diff --cached)")
+echo -e "Commit message suggestion:\n$commit_message_text"
+
+# Extract commit message from XML tags
+commit_message=$(echo "$commit_message_text" | sed -n 's/.*<commit>\(.*\)<\/commit>.*/\1/p')
+git commit -m "$commit_message"
+
+# Create and merge PR
+gh pr create --fill && gh pr merge --auto --squash
+
+echo "Lazy git process completed successfully!"
