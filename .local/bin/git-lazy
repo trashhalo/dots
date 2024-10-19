@@ -1,66 +1,149 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-# Check if ANTHROPIC_API_KEY is set
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "Error: ANTHROPIC_API_KEY is not set. Please set it in your environment."
-    exit 1
-fi
+import os
+import sys
+import subprocess
+import urllib.request
+import urllib.error
+import json
+import xml.etree.ElementTree as ET
+import tempfile
+import argparse
 
-# Check if there are any staged files
-if [ -z "$(git diff --cached --name-only)" ]; then
-    echo "Error: No staged files found. Please stage your changes before running this command."
-    exit 1
-fi
+def run_command(command):
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise Exception(f"Command failed: {result.stderr}")
+    return result.stdout.strip()
 
-# Function to call Anthropic API
-call_anthropic_api() {
-    local prompt="$1"
-    local diff="$2"
+def call_anthropic_api(prompt, diff, use_smart_model=False):
+    url = "https://api.anthropic.com/v1/messages"
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": os.environ['ANTHROPIC_API_KEY'],
+        "anthropic-version": "2023-06-01"
+    }
+    data = json.dumps({
+        "model": "claude-3-sonnet-20240320" if use_smart_model else "claude-3-haiku-20240307",
+        "max_tokens": 1000,
+        "messages": [
+            {
+                "role": "user",
+                "content": f"{prompt}\n\nHere are the changes:\n```\n{diff}\n```"
+            }
+        ]
+    }).encode('utf-8')
+
+    req = urllib.request.Request(url, data=data, headers=headers, method='POST')
     
-    response=$(curl -s https://api.anthropic.com/v1/messages \
-        -H "Content-Type: application/json" \
-        -H "x-api-key: $ANTHROPIC_API_KEY" \
-        -H "anthropic-version: 2023-06-01" \
-        -d '{
-            "model": "claude-3-haiku-20240307",
-            "max_tokens": 1000,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "'"${prompt//\"/\\\"}"'\n\nHere are the changes:\n```\n'"${diff//\"/\\\"}"'\n```"
-                }
-            ]
-        }')
+    try:
+        with urllib.request.urlopen(req) as response:
+            response_data = json.loads(response.read().decode('utf-8'))
+            return response_data['content'][0]['text']
+    except urllib.error.HTTPError as e:
+        print(f"HTTP Error {e.code}: {e.reason}")
+        print(e.read().decode('utf-8'))
+        sys.exit(1)
+    except urllib.error.URLError as e:
+        print(f"URL Error: {e.reason}")
+        sys.exit(1)
+
+def extract_xml_content(text, tag):
+    try:
+        root = ET.fromstring(f"<root>{text}</root>")
+        element = root.find(tag)
+        if element is not None:
+            return element.text.strip()
+        raise ValueError(f"No content found for tag: {tag}")
+    except ET.ParseError:
+        raise ValueError("Invalid XML structure in the response")
+
+def edit_in_editor(uncommented_content, commented_content):
+    editor = os.environ.get('EDITOR', 'vim')
+    with tempfile.NamedTemporaryFile(mode='w+', suffix=".tmp", delete=False) as tf:
+        tf.write(uncommented_content + '\n\n')
+        tf.write('\n'.join('# ' + line for line in commented_content.split('\n')))
+        tf.flush()
+        
+        # Get the initial modification time
+        initial_mtime = os.path.getmtime(tf.name)
+        
+        # Open the editor
+        subprocess.call([editor, tf.name])
+        
+        # Get the new modification time
+        new_mtime = os.path.getmtime(tf.name)
+        
+        # Read the content
+        with open(tf.name, 'r') as f:
+            edited_content = f.read().strip()
+        
+    # Remove the temporary file
+    os.unlink(tf.name)
     
-    echo "$response" | jq -r '.content[0].text'
-}
+    # If the file wasn't modified, return the original content
+    if new_mtime == initial_mtime:
+        return uncommented_content
+    
+    # If the content wasn't changed, return the original content
+    if edited_content == uncommented_content + '\n\n' + '\n'.join('# ' + line for line in commented_content.split('\n')):
+        return uncommented_content
+    
+    return edited_content.split('\n')[0].strip()  # Return only the first non-empty line
 
-# Generate branch name
-branch_prompt="Review these changes and suggest a branch name. The name of the branch should be in a <branch></branch> XML tag. Before responding, you may also think through this question. Place your thoughts in a <thought></thought> XML tag.
+def main():
+    parser = argparse.ArgumentParser(description="Lazy git process with AI-assisted branch naming and commit messages.")
+    parser.add_argument("--smart", action="store_true", help="Use the more capable AI model")
+    parser.add_argument("--commit-only", action="store_true", help="Only commit changes, skip branch creation and PR")
+    args = parser.parse_args()
 
-Example branch names:
-<branch>feature/add-new-feature</branch>
-<branch>bugfix/fix-bug</branch>
-<branch>refactor/refactor-code</branch>"
+    if 'ANTHROPIC_API_KEY' not in os.environ:
+        print("Error: ANTHROPIC_API_KEY is not set. Please set it in your environment.")
+        sys.exit(1)
 
-branch_name_text=$(call_anthropic_api "$branch_prompt" "$(git diff --cached)")
-echo -e "Branch name suggestion:\n$branch_name_text"
+    if not run_command("git diff --cached --name-only"):
+        print("Error: No staged files found. Please stage your changes before running this command.")
+        sys.exit(1)
 
-# Extract branch name from XML tags
-branch_name=$(echo "$branch_name_text" | sed -n 's/.*<branch>\(.*\)<\/branch>.*/\1/p')
-git checkout -b "$branch_name"
+    # Generate branch name and commit message
+    prompt = """Review these changes and suggest both a branch name and a commit message. 
 
-# Generate commit message
-commit_prompt="Review these changes and suggest a commit message. The message should be in a <commit></commit> XML tag. Before responding, you may also think through this question. Place your thoughts in a <thought></thought> XML tag. The first line of the commit message will be the title of the pull request."
+    The name of the branch should be in a <branch></branch> XML tag. 
+    Example branch names:
+    <branch>feature/add-new-feature</branch>
+    <branch>bugfix/fix-bug</branch>
+    <branch>refactor/refactor-code</branch>
 
-commit_message_text=$(call_anthropic_api "$commit_prompt" "$(git diff --cached)")
-echo -e "Commit message suggestion:\n$commit_message_text"
+    The commit message should be in a <commit></commit> XML tag. The first line of the commit message will be the title of the pull request.
 
-# Extract commit message from XML tags
-commit_message=$(echo "$commit_message_text" | sed -n 's/.*<commit>\(.*\)<\/commit>.*/\1/p')
-git commit -m "$commit_message"
+    Before responding, you may also think through this task. Place your thoughts in a <thought></thought> XML tag."""
 
-# Create and merge PR
-gh pr create --fill && gh pr merge --auto --squash
+    response_text = call_anthropic_api(prompt, run_command("git diff --cached"), args.smart)
+    print(f"AI suggestion:\n{response_text}")
 
-echo "Lazy git process completed successfully!"
+    branch_name = extract_xml_content(response_text, "branch")
+    commit_message = extract_xml_content(response_text, "commit")
+
+    if not args.commit_only:
+        # Edit branch name
+        final_branch_name = edit_in_editor(branch_name, f"AI suggestion:\n{response_text}")
+        if final_branch_name != branch_name:
+            run_command(f"git checkout -b {final_branch_name}")
+        else:
+            print("Using AI-suggested branch name.")
+
+    # Edit commit message
+    final_commit_message = edit_in_editor(commit_message, f"AI suggestion:\n{response_text}")
+    if final_commit_message == commit_message:
+        print("Using AI-suggested commit message.")
+
+    run_command(f'git commit -m "{final_commit_message}"')
+
+    if not args.commit_only:
+        # Create and merge PR
+        run_command("gh pr create --fill && gh pr merge --auto --squash")
+
+    print("Lazy git process completed successfully!")
+
+if __name__ == "__main__":
+    main()
