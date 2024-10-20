@@ -2,10 +2,11 @@
 
 import { parseArgs } from "node:util";
 import { XMLParser } from "fast-xml-parser";
-import { $ } from "bun";
 import Anthropic from "@anthropic-ai/sdk";
 import chalk from "chalk";
 import os from "os";
+import fs from 'fs/promises';
+import path from 'path';
 
 function getSystemInfo() {
   const platform = os.platform();
@@ -38,6 +39,8 @@ Guidelines for suggesting commands:
 3. If multiple steps are required, try to combine them using && or | when appropriate.
 4. Enclose the suggested command in <command></command> tags.
 5. Do not include any explanatory text outside the <command> tags.
+6. If role information is provided, use it to tailor your command suggestions accordingly.
+   The role information can be utilized to generate more specific or relevant commands.
 `.trim();
 
 const SYSTEM_PROMPT_RESPONSE = `
@@ -54,6 +57,8 @@ Guidelines for general responses:
 2. If you're unsure about anything, express your uncertainty and ask for clarification.
 3. Enclose your main response in <response></response> tags.
 4. Do not include any command suggestions in this response.
+5. If role information is provided, use it to tailor your response to the user's specific needs or context.
+   The role information can be utilized to provide more relevant or specialized information.
 `.trim();
 
 const SYSTEM_PROMPT_DESCRIPTION = `
@@ -71,9 +76,45 @@ Guidelines for describing commands:
 3. Provide short responses in about 80 words.
 4. Apply Markdown formatting when possible.
 5. Enclose your description in <description></description> tags.
+6. If role information is provided, use it to provide more context-specific descriptions or highlight
+   aspects of the command that are particularly relevant to the role.
 `.trim();
 
-async function callAnthropicApi(instruction, inputText = "", suggest = false, useSmartModel = false, isDescribe = false) {
+async function getRoleContent(roleName) {
+  if (!roleName) return null;
+  
+  const roleFilePath = path.join(os.homedir(), '.config', 'shell_anthropic', 'roles', `${roleName}.txt`);
+  
+  try {
+    const content = await fs.readFile(roleFilePath, 'utf-8');
+    return content.trim();
+  } catch (error) {
+    console.warn(chalk.yellow(`Warning: Could not read role file for ${roleName}. Using default prompts.`));
+    return null;
+  }
+}
+
+async function getSystemPrompt(type, roleName) {
+  let basePrompt;
+  
+  if (type === 'command') {
+    basePrompt = SYSTEM_PROMPT_COMMAND;
+  } else if (type === 'response') {
+    basePrompt = SYSTEM_PROMPT_RESPONSE;
+  } else if (type === 'description') {
+    basePrompt = SYSTEM_PROMPT_DESCRIPTION;
+  }
+
+  const roleContent = await getRoleContent(roleName);
+  
+  if (roleContent) {
+    return `${basePrompt}\n\nAdditional role context:\n${roleContent}\n\nUse this role information to tailor your response, generate relevant code or commands, or fulfill specific needs related to this role.`;
+  }
+  
+  return basePrompt;
+}
+
+async function callAnthropicApi(instruction, inputText = "", suggest = false, useSmartModel = false, isDescribe = false, roleName = null) {
   const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
   });
@@ -88,13 +129,13 @@ async function callAnthropicApi(instruction, inputText = "", suggest = false, us
   let tagToExtract;
 
   if (suggest) {
-    systemPrompt = SYSTEM_PROMPT_COMMAND;
+    systemPrompt = await getSystemPrompt('command', roleName);
     tagToExtract = "command";
   } else if (isDescribe) {
-    systemPrompt = SYSTEM_PROMPT_DESCRIPTION;
+    systemPrompt = await getSystemPrompt('description', roleName);
     tagToExtract = "description";
   } else {
-    systemPrompt = SYSTEM_PROMPT_RESPONSE;
+    systemPrompt = await getSystemPrompt('response', roleName);
     tagToExtract = "response";
   }
 
@@ -112,28 +153,32 @@ async function callAnthropicApi(instruction, inputText = "", suggest = false, us
 
   const fullResponse = response.content[0].text;
   
-  try {
-    return extractXmlContent(fullResponse, tagToExtract);
-  } catch (error) {
-    if (suggest) {
-      // For command suggestions, return the full response if no tag is found
-      return fullResponse.trim();
-    } else {
-      console.warn(chalk.yellow(`Warning: No <${tagToExtract}> tag found. Returning full response.`));
-      return fullResponse;
-    }
+  const extractedContent = extractXmlContent(fullResponse, tagToExtract);
+  
+  if (extractedContent === fullResponse.trim()) {
+    console.warn(chalk.yellow(`Warning: No <${tagToExtract}> tag found. Returning full response.`));
   }
+  
+  return extractedContent;
 }
 
 function extractXmlContent(text, tag) {
-  const parser = new XMLParser();
-  const parsedXml = parser.parse(`<root>${text}</root>`);
-  
-  if (parsedXml.root && parsedXml.root[tag]) {
-    return parsedXml.root[tag].trim();
+  const regex = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, 'gi');
+  let content = '';
+  let count = 0;
+
+  text.replace(regex, (match) => {
+    count++;
+    const innerContent = match.replace(new RegExp(`^<${tag}>|<\\/${tag}>$`, 'gi'), '');
+    content += innerContent + '\n';
+    return match; // This is necessary for replace to continue searching
+  });
+
+  if (count > 0) {
+    return content.trim();
   }
-  
-  throw new Error(`No content found for tag: ${tag}`);
+
+  return text.trim(); // Return the full text if no tag is found
 }
 
 const { exec } = require('child_process');
@@ -159,6 +204,7 @@ const { values, positionals } = parseArgs({
   options: {
     smart: { type: "boolean", short: "m", default: false },
     suggest: { type: "boolean", short: "s", default: false },
+    role: { type: "string", short: "r" },
   },
   allowPositionals: true,
 });
@@ -185,7 +231,7 @@ const inputText = process.stdin.isTTY ? "" : await new Promise((resolve) => {
 });
 
 try {
-  const response = await callAnthropicApi(instruction, inputText, values.suggest, values.smart);
+  const response = await callAnthropicApi(instruction, inputText, values.suggest, values.smart, false, values.role);
 
   if (values.suggest) {
     console.log(chalk.cyan(chalk.bold(response)));
@@ -205,7 +251,7 @@ try {
       }
     } else if (userChoice === "d") {
       const descriptionPrompt = `Please describe what this command does: ${response}`;
-      const description = await callAnthropicApi(descriptionPrompt, "", false, values.smart, true);
+      const description = await callAnthropicApi(descriptionPrompt, "", false, values.smart, true, values.role);
       console.log(chalk.magenta(`Command description:\n${description}`));
     } else if (userChoice === "a") {
       console.log(chalk.yellow("Aborted."));
