@@ -1,0 +1,225 @@
+#!/usr/bin/env bun
+
+import { parseArgs } from "node:util";
+import { XMLParser } from "fast-xml-parser";
+import { $ } from "bun";
+import Anthropic from "@anthropic-ai/sdk";
+import chalk from "chalk";
+import os from "os";
+
+function getSystemInfo() {
+  const platform = os.platform();
+  const release = os.release();
+  const arch = os.arch();
+  const shell = process.env.SHELL || 'unknown';
+
+  return {
+    platform,
+    release,
+    arch,
+    shell
+  };
+}
+
+const systemInfo = getSystemInfo();
+
+const SYSTEM_PROMPT_COMMAND = `
+You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest.
+
+Your task is to suggest a command based on the user's instruction.
+
+The user is operating on:
+- Platform: ${systemInfo.platform}-${systemInfo.release}-${systemInfo.arch}
+- Shell: ${systemInfo.shell}
+
+Guidelines for suggesting commands:
+1. Ensure the command is correct, safe to run, and appropriate for the user's system and shell.
+2. Be concise but thorough in your command suggestion.
+3. If multiple steps are required, try to combine them using && or | when appropriate.
+4. Enclose the suggested command in <command></command> tags.
+5. Do not include any explanatory text outside the <command> tags.
+`.trim();
+
+const SYSTEM_PROMPT_RESPONSE = `
+You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest.
+
+Your task is to provide a general response to the user's request.
+
+The user is operating on:
+- Platform: ${systemInfo.platform}-${systemInfo.release}-${systemInfo.arch}
+- Shell: ${systemInfo.shell}
+
+Guidelines for general responses:
+1. Be concise but thorough in your explanations.
+2. If you're unsure about anything, express your uncertainty and ask for clarification.
+3. Enclose your main response in <response></response> tags.
+4. Do not include any command suggestions in this response.
+`.trim();
+
+const SYSTEM_PROMPT_DESCRIPTION = `
+You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest.
+
+Your task is to describe a given shell command.
+
+The user is operating on:
+- Platform: ${systemInfo.platform}-${systemInfo.release}-${systemInfo.arch}
+- Shell: ${systemInfo.shell}
+
+Guidelines for describing commands:
+1. Provide a terse, single sentence description of the given shell command.
+2. Describe each argument and option of the command.
+3. Provide short responses in about 80 words.
+4. Apply Markdown formatting when possible.
+5. Enclose your description in <description></description> tags.
+`.trim();
+
+async function callAnthropicApi(instruction, inputText = "", suggest = false, useSmartModel = false, isDescribe = false) {
+  const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+
+  let userContent = `Instruction: ${instruction}\n\n`;
+  
+  if (inputText) {
+    userContent += `Input:\n${inputText}\n\n`;
+  }
+  
+  let systemPrompt;
+  let tagToExtract;
+
+  if (suggest) {
+    systemPrompt = SYSTEM_PROMPT_COMMAND;
+    tagToExtract = "command";
+  } else if (isDescribe) {
+    systemPrompt = SYSTEM_PROMPT_DESCRIPTION;
+    tagToExtract = "description";
+  } else {
+    systemPrompt = SYSTEM_PROMPT_RESPONSE;
+    tagToExtract = "response";
+  }
+
+  const response = await anthropic.messages.create({
+    model: useSmartModel ? "claude-3-opus-20240229" : "claude-3-haiku-20240307",
+    max_tokens: 1000,
+    system: systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: userContent,
+      },
+    ],
+  });
+
+  const fullResponse = response.content[0].text;
+  
+  try {
+    return extractXmlContent(fullResponse, tagToExtract);
+  } catch (error) {
+    if (suggest) {
+      // For command suggestions, return the full response if no tag is found
+      return fullResponse.trim();
+    } else {
+      console.warn(chalk.yellow(`Warning: No <${tagToExtract}> tag found. Returning full response.`));
+      return fullResponse;
+    }
+  }
+}
+
+function extractXmlContent(text, tag) {
+  const parser = new XMLParser();
+  const parsedXml = parser.parse(`<root>${text}</root>`);
+  
+  if (parsedXml.root && parsedXml.root[tag]) {
+    return parsedXml.root[tag].trim();
+  }
+  
+  throw new Error(`No content found for tag: ${tag}`);
+}
+
+const { exec } = require('child_process');
+
+function executeCommand(command) {
+  return new Promise((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error: ${error.message}`);
+        return reject(error);
+      }
+      if (stderr) {
+        console.error(`stderr: ${stderr}`);
+      }
+      console.log(stdout);
+      resolve(0);
+    });
+  });
+}
+
+
+const { values, positionals } = parseArgs({
+  options: {
+    smart: { type: "boolean", short: "m", default: false },
+    suggest: { type: "boolean", short: "s", default: false },
+  },
+  allowPositionals: true,
+});
+
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error(chalk.red("Error: ANTHROPIC_API_KEY is not set. Please set it in your environment."));
+  process.exit(1);
+}
+
+const instruction = positionals[0];
+if (!instruction) {
+  console.error(chalk.red("Error: Instruction is required."));
+  process.exit(1);
+}
+
+const inputText = process.stdin.isTTY ? "" : await new Promise((resolve) => {
+  let data = '';
+  process.stdin.on('data', (chunk) => {
+    data += chunk;
+  });
+  process.stdin.on('end', () => {
+    resolve(data);
+  });
+});
+
+try {
+  const response = await callAnthropicApi(instruction, inputText, values.suggest, values.smart);
+
+  if (values.suggest) {
+    console.log(chalk.cyan(chalk.bold(response)));
+    console.log(chalk.yellow("[E]xecute, [D]escribe, [A]bort:"));
+    
+    const userChoice = await new Promise((resolve) => {
+      process.stdin.once("data", (data) => {
+        resolve(data.toString().trim().toLowerCase());
+      });
+    });
+
+    if (userChoice === "e") {
+      try {
+        await executeCommand(response);
+      } catch (error) {
+        console.error(chalk.red(`Error executing command: ${error.message}`));
+      }
+    } else if (userChoice === "d") {
+      const descriptionPrompt = `Please describe what this command does: ${response}`;
+      const description = await callAnthropicApi(descriptionPrompt, "", false, values.smart, true);
+      console.log(chalk.magenta(`Command description:\n${description}`));
+    } else if (userChoice === "a") {
+      console.log(chalk.yellow("Aborted."));
+    } else {
+      console.log(chalk.red("Invalid choice. Aborted."));
+    }
+  } else {
+    console.log(chalk.white(response));
+  }
+} catch (error) {
+  console.error(chalk.red(`An error occurred: ${error.message}`));
+  process.exit(1);
+}
+
+process.exit(0);
+
+/* vim: set ft=javascript : */
