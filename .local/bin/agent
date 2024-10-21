@@ -1,12 +1,15 @@
 #!/usr/bin/env bun
 
-import { parseArgs } from "node:util";
+import { Command } from 'commander';
+import inquirer from 'inquirer';
+import ora from 'ora';
 import { XMLParser } from "fast-xml-parser";
 import Anthropic from "@anthropic-ai/sdk";
 import chalk from "chalk";
 import os from "os";
 import fs from 'fs/promises';
 import path from 'path';
+import tmp from "tmp-promise";
 
 function getSystemInfo() {
   const platform = os.platform();
@@ -115,6 +118,7 @@ async function getSystemPrompt(type, roleName) {
 }
 
 async function callAnthropicApi(instruction, inputText = "", suggest = false, useSmartModel = false, isDescribe = false, roleName = null) {
+  const spinner = ora('Calling Anthropic API').start();
   const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
   });
@@ -139,133 +143,167 @@ async function callAnthropicApi(instruction, inputText = "", suggest = false, us
     tagToExtract = "response";
   }
 
-  const response = await anthropic.messages.create({
-    model: useSmartModel ? "claude-3-opus-20240229" : "claude-3-haiku-20240307",
-    max_tokens: 1000,
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: userContent,
-      },
-    ],
-  });
+  try {
+    const response = await anthropic.messages.create({
+      model: useSmartModel ? "claude-3-opus-20240229" : "claude-3-haiku-20240307",
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: userContent,
+        },
+      ],
+    });
 
-  const fullResponse = response.content[0].text;
-  
-  const extractedContent = extractXmlContent(fullResponse, tagToExtract);
-  
-  if (extractedContent === fullResponse.trim()) {
-    console.warn(chalk.yellow(`Warning: No <${tagToExtract}> tag found. Returning full response.`));
+    spinner.stop(); // Stop and remove the spinner without showing a success message
+    
+    const fullResponse = response.content[0].text;
+    const extractedContent = extractXmlContent(fullResponse, tagToExtract);
+    
+    if (extractedContent === fullResponse.trim()) {
+      console.warn(chalk.yellow(`Warning: No <${tagToExtract}> tag found. Returning full response.`));
+    }
+    
+    return extractedContent;
+  } catch (error) {
+    spinner.fail('API call failed');
+    throw error;
   }
-  
-  return extractedContent;
 }
 
 function extractXmlContent(text, tag) {
-  const regex = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, 'gi');
-  let content = '';
-  let count = 0;
-
-  text.replace(regex, (match) => {
-    count++;
-    const innerContent = match.replace(new RegExp(`^<${tag}>|<\\/${tag}>$`, 'gi'), '');
-    content += innerContent + '\n';
-    return match; // This is necessary for replace to continue searching
-  });
-
-  if (count > 0) {
-    return content.trim();
-  }
-
-  return text.trim(); // Return the full text if no tag is found
+  const parser = new XMLParser();
+  const jsonObj = parser.parse(`<root>${text}</root>`);
+  return jsonObj.root[tag] || text.trim();
 }
 
-const { exec } = require('child_process');
-
-function executeCommand(command) {
-  return new Promise((resolve, reject) => {
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error: ${error.message}`);
-        return reject(error);
-      }
-      if (stderr) {
-        console.error(`stderr: ${stderr}`);
-      }
-      console.log(stdout);
-      resolve(0);
-    });
-  });
-}
-
-
-const { values, positionals } = parseArgs({
-  options: {
-    smart: { type: "boolean", short: "m", default: false },
-    suggest: { type: "boolean", short: "s", default: false },
-    role: { type: "string", short: "r" },
-  },
-  allowPositionals: true,
-});
-
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error(chalk.red("Error: ANTHROPIC_API_KEY is not set. Please set it in your environment."));
-  process.exit(1);
-}
-
-const instruction = positionals[0];
-if (!instruction) {
-  console.error(chalk.red("Error: Instruction is required."));
-  process.exit(1);
-}
-
-const inputText = process.stdin.isTTY ? "" : await new Promise((resolve) => {
-  let data = '';
-  process.stdin.on('data', (chunk) => {
-    data += chunk;
-  });
-  process.stdin.on('end', () => {
-    resolve(data);
-  });
-});
-
-try {
-  const response = await callAnthropicApi(instruction, inputText, values.suggest, values.smart, false, values.role);
-
-  if (values.suggest) {
-    console.log(chalk.cyan(chalk.bold(response)));
-    console.log(chalk.yellow("[E]xecute, [D]escribe, [A]bort:"));
+async function editInEditor(content, commentedContent = "") {
+  const editor = process.env.EDITOR || "vim";
+  const { path: tempPath, cleanup } = await tmp.file();
+  
+  try {
+    await fs.writeFile(tempPath, `${content}\n\n${commentedContent.split('\n').map(line => `# ${line}`).join('\n')}`);
     
-    const userChoice = await new Promise((resolve) => {
-      process.stdin.once("data", (data) => {
-        resolve(data.toString().trim().toLowerCase());
-      });
-    });
-
-    if (userChoice === "e") {
-      try {
-        await executeCommand(response);
-      } catch (error) {
-        console.error(chalk.red(`Error executing command: ${error.message}`));
-      }
-    } else if (userChoice === "d") {
-      const descriptionPrompt = `Please describe what this command does: ${response}`;
-      const description = await callAnthropicApi(descriptionPrompt, "", false, values.smart, true, values.role);
-      console.log(chalk.magenta(`Command description:\n${description}`));
-    } else if (userChoice === "a") {
-      console.log(chalk.yellow("Aborted."));
-    } else {
-      console.log(chalk.red("Invalid choice. Aborted."));
+    const initialStat = await fs.stat(tempPath);
+    await Bun.spawn([editor, tempPath], { stdio: 'inherit' });
+    const newStat = await fs.stat(tempPath);
+    
+    if (newStat.mtime === initialStat.mtime) {
+      return content;
     }
-  } else {
-    console.log(chalk.white(response));
+    
+    const editedContent = await fs.readFile(tempPath, 'utf-8');
+    return editedContent.split('\n').filter(line => !line.startsWith('#')).join('\n').trim();
+  } finally {
+    await cleanup();
   }
-} catch (error) {
-  console.error(chalk.red(`An error occurred: ${error.message}`));
-  process.exit(1);
 }
 
-process.exit(0);
+async function executeCommand(command) {
+  const spinner = ora('Executing command').start();
+  try {
+    const proc = Bun.spawn(command.split(' '), { stdio: ['inherit', 'pipe', 'pipe'] });
+    const stdout = await new Response(proc.stdout).text();
+    const stderr = await new Response(proc.stderr).text();
+    
+    if (stderr) {
+      spinner.warn('Command executed with warnings');
+      console.error(chalk.yellow(`stderr: ${stderr}`));
+    } else {
+      spinner.succeed('Command executed successfully');
+    }
+    console.log(stdout);
+    process.exit(0);
+  } catch (error) {
+    spinner.fail('Command execution failed');
+    console.error(chalk.red(`Error: ${error.message}`));
+    process.exit(1);
+  }
+}
+
+async function main() {
+  const program = new Command();
+
+  program
+    .option('-m, --smart', 'Use smart model')
+    .option('-s, --suggest', 'Suggest a command')
+    .option('-r, --role <role>', 'Specify a role')
+    .argument('<instruction>', 'Instruction for the AI')
+    .parse(process.argv);
+
+  const options = program.opts();
+  const instruction = program.args[0];
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error(chalk.red("Error: ANTHROPIC_API_KEY is not set. Please set it in your environment."));
+    process.exit(1);
+  }
+
+  const inputText = process.stdin.isTTY ? "" : await new Promise((resolve) => {
+    let data = '';
+    process.stdin.on('data', (chunk) => {
+      data += chunk;
+    });
+    process.stdin.on('end', () => {
+      resolve(data);
+    });
+  });
+
+  try {
+    const response = await callAnthropicApi(instruction, inputText, options.suggest, options.smart, false, options.role);
+
+    if (options.suggest) {
+      console.log(chalk.cyan(chalk.bold(response)));
+      const { action } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'action',
+          message: 'What would you like to do?',
+          choices: ['Execute', 'Describe', 'Edit', 'Abort']
+        }
+      ]);
+
+      switch (action) {
+        case 'Execute':
+          await executeCommand(response);
+          break;
+        case 'Describe':
+          const descriptionPrompt = `Please describe what this command does: ${response}`;
+          const description = await callAnthropicApi(descriptionPrompt, "", false, options.smart, true, options.role);
+          console.log(chalk.magenta(`Command description:\n${description}`));
+          break;
+        case 'Edit':
+          const editedCommand = await editInEditor(response, `AI suggestion:\n${response}`);
+          console.log(chalk.cyan(`Edited command:\n${editedCommand}`));
+          const { executeEdited } = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'executeEdited',
+              message: 'Do you want to execute the edited command?',
+              default: false
+            }
+          ]);
+          if (executeEdited) {
+            await executeCommand(editedCommand);
+          }
+          break;
+        case 'Abort':
+          console.log(chalk.yellow("Aborted."));
+          break;
+      }
+    } else {
+      console.log(chalk.white(response));
+    }
+  } catch (error) {
+    console.error(chalk.red(`An error occurred: ${error.message}`));
+    process.exit(1);
+  }
+}
+
+main().catch((error) => {
+  console.error(chalk.red(`An unexpected error occurred: ${error.message}`));
+  process.exit(1);
+});
 
 /* vim: set ft=javascript : */
