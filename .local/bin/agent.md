@@ -1,0 +1,348 @@
+#!/usr/bin/env mdexec -e "bun run" -l javascript
+
+# AI-Powered Command Line Assistant
+
+This markdown file contains an AI-powered command-line assistant that uses the Anthropic API to generate responses, suggest commands, and provide descriptions. It's designed to be executed using `mdexec`.
+
+## Dependencies
+
+First, let's import the necessary dependencies:
+
+```javascript
+import { Command } from 'commander';
+import inquirer from 'inquirer';
+import ora from 'ora';
+import { XMLParser } from "fast-xml-parser";
+import Anthropic from "@anthropic-ai/sdk";
+import chalk from "chalk";
+import os from "os";
+import fs from 'fs/promises';
+import path from 'path';
+import tmp from "tmp-promise";
+```
+
+## System Information
+
+We'll create a function to get system information:
+
+```javascript
+function getSystemInfo() {
+  const platform = os.platform();
+  const release = os.release();
+  const arch = os.arch();
+  const shell = process.env.SHELL || 'unknown';
+
+  return {
+    platform,
+    release,
+    arch,
+    shell
+  };
+}
+
+const systemInfo = getSystemInfo();
+```
+
+## System Prompts
+
+Now, let's define our system prompts:
+
+```javascript
+const SYSTEM_PROMPT_COMMAND = `
+You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest.
+
+Your task is to suggest a command based on the user's instruction.
+
+The user is operating on:
+- Platform: ${systemInfo.platform}-${systemInfo.release}-${systemInfo.arch}
+- Shell: ${systemInfo.shell}
+
+Guidelines for suggesting commands:
+1. Ensure the command is correct, safe to run, and appropriate for the user's system and shell.
+2. Be concise but thorough in your command suggestion.
+3. If multiple steps are required, try to combine them using && or | when appropriate.
+4. Enclose the suggested command in <command></command> tags.
+5. Do not include any explanatory text outside the <command> tags.
+6. If role information is provided, use it to tailor your command suggestions accordingly.
+   The role information can be utilized to generate more specific or relevant commands.
+`.trim();
+
+const SYSTEM_PROMPT_RESPONSE = `
+You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest.
+
+Your task is to provide a general response to the user's request.
+
+The user is operating on:
+- Platform: ${systemInfo.platform}-${systemInfo.release}-${systemInfo.arch}
+- Shell: ${systemInfo.shell}
+
+Guidelines for general responses:
+1. Be concise but thorough in your explanations.
+2. If you're unsure about anything, express your uncertainty and ask for clarification.
+3. Enclose your main response in <response></response> tags.
+4. Do not include any command suggestions in this response.
+5. If role information is provided, use it to tailor your response to the user's specific needs or context.
+   The role information can be utilized to provide more relevant or specialized information.
+`.trim();
+
+const SYSTEM_PROMPT_DESCRIPTION = `
+You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest.
+
+Your task is to describe a given shell command.
+
+The user is operating on:
+- Platform: ${systemInfo.platform}-${systemInfo.release}-${systemInfo.arch}
+- Shell: ${systemInfo.shell}
+
+Guidelines for describing commands:
+1. Provide a terse, single sentence description of the given shell command.
+2. Describe each argument and option of the command.
+3. Provide short responses in about 80 words.
+4. Apply Markdown formatting when possible.
+5. Enclose your description in <description></description> tags.
+6. If role information is provided, use it to provide more context-specific descriptions or highlight
+   aspects of the command that are particularly relevant to the role.
+`.trim();
+```
+
+## Helper Functions
+
+Let's define some helper functions:
+
+```javascript
+async function getRoleContent(roleName) {
+  if (!roleName) return null;
+  
+  const roleFilePath = path.join(os.homedir(), '.config', 'shell_anthropic', 'roles', `${roleName}.txt`);
+  
+  try {
+    const content = await fs.readFile(roleFilePath, 'utf-8');
+    return content.trim();
+  } catch (error) {
+    console.warn(chalk.yellow(`Warning: Could not read role file for ${roleName}. Using default prompts.`));
+    return null;
+  }
+}
+
+async function getSystemPrompt(type, roleName) {
+  let basePrompt;
+  
+  if (type === 'command') {
+    basePrompt = SYSTEM_PROMPT_COMMAND;
+  } else if (type === 'response') {
+    basePrompt = SYSTEM_PROMPT_RESPONSE;
+  } else if (type === 'description') {
+    basePrompt = SYSTEM_PROMPT_DESCRIPTION;
+  }
+
+  const roleContent = await getRoleContent(roleName);
+  
+  if (roleContent) {
+    return `${basePrompt}\n\nAdditional role context:\n${roleContent}\n\nUse this role information to tailor your response, generate relevant code or commands, or fulfill specific needs related to this role.`;
+  }
+  
+  return basePrompt;
+}
+
+function extractXmlContent(text, tag) {
+  const parser = new XMLParser();
+  const jsonObj = parser.parse(`<root>${text}</root>`);
+  return jsonObj.root[tag] || text.trim();
+}
+
+async function editInEditor(content, commentedContent = "") {
+  const editor = process.env.EDITOR || "vim";
+  const { path: tempPath, cleanup } = await tmp.file();
+  
+  try {
+    await fs.writeFile(tempPath, `${content}\n\n${commentedContent.split('\n').map(line => `# ${line}`).join('\n')}`);
+    
+    const initialStat = await fs.stat(tempPath);
+    await Bun.spawn([editor, tempPath], { stdio: 'inherit' });
+    const newStat = await fs.stat(tempPath);
+    
+    if (newStat.mtime === initialStat.mtime) {
+      return content;
+    }
+    
+    const editedContent = await fs.readFile(tempPath, 'utf-8');
+    return editedContent.split('\n').filter(line => !line.startsWith('#')).join('\n').trim();
+  } finally {
+    await cleanup();
+  }
+}
+
+async function executeCommand(command) {
+  const spinner = ora('Executing command').start();
+  try {
+    const proc = Bun.spawn(command.split(' '), { stdio: ['inherit', 'pipe', 'pipe'] });
+    const stdout = await new Response(proc.stdout).text();
+    const stderr = await new Response(proc.stderr).text();
+    
+    if (stderr) {
+      spinner.warn('Command executed with warnings');
+      console.error(chalk.yellow(`stderr: ${stderr}`));
+    } else {
+      spinner.succeed('Command executed successfully');
+    }
+    console.log(stdout);
+    process.exit(0);
+  } catch (error) {
+    spinner.fail('Command execution failed');
+    console.error(chalk.red(`Error: ${error.message}`));
+    process.exit(1);
+  }
+}
+```
+
+## Main API Call Function
+
+Now, let's define the main function for calling the Anthropic API:
+
+```javascript
+async function callAnthropicApi(instruction, inputText = "", suggest = false, useSmartModel = false, isDescribe = false, roleName = null) {
+  const spinner = ora('Calling Anthropic API').start();
+  const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+
+  let userContent = `Instruction: ${instruction}\n\n`;
+  
+  if (inputText) {
+    userContent += `Input:\n${inputText}\n\n`;
+  }
+  
+  let systemPrompt;
+  let tagToExtract;
+
+  if (suggest) {
+    systemPrompt = await getSystemPrompt('command', roleName);
+    tagToExtract = "command";
+  } else if (isDescribe) {
+    systemPrompt = await getSystemPrompt('description', roleName);
+    tagToExtract = "description";
+  } else {
+    systemPrompt = await getSystemPrompt('response', roleName);
+    tagToExtract = "response";
+  }
+
+  try {
+    const response = await anthropic.messages.create({
+      model: useSmartModel ? "claude-3-opus-20240229" : "claude-3-haiku-20240307",
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: userContent,
+        },
+      ],
+    });
+
+    spinner.stop();
+    
+    const fullResponse = response.content[0].text;
+    const extractedContent = extractXmlContent(fullResponse, tagToExtract);
+    
+    if (extractedContent === fullResponse.trim()) {
+      console.warn(chalk.yellow(`Warning: No <${tagToExtract}> tag found. Returning full response.`));
+    }
+    
+    return extractedContent;
+  } catch (error) {
+    spinner.fail('API call failed');
+    throw error;
+  }
+}
+```
+
+## Main Function
+
+Finally, let's define our main function:
+
+```javascript
+try {
+  const program = new Command();
+
+  program
+    .option('-m, --smart', 'Use smart model')
+    .option('-s, --suggest', 'Suggest a command')
+    .option('-r, --role <role>', 'Specify a role')
+    .argument('<instruction>', 'Instruction for the AI')
+    .parse(process.argv);
+
+  const options = program.opts();
+  const instruction = program.args[0];
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error(chalk.red("Error: ANTHROPIC_API_KEY is not set. Please set it in your environment."));
+    process.exit(1);
+  }
+
+  const inputText = process.stdin.isTTY ? "" : await new Promise((resolve) => {
+    let data = '';
+    process.stdin.on('data', (chunk) => {
+      data += chunk;
+    });
+    process.stdin.on('end', () => {
+      resolve(data);
+    });
+  });
+
+  try {
+    const response = await callAnthropicApi(instruction, inputText, options.suggest, options.smart, false, options.role);
+
+    if (options.suggest) {
+      console.log(chalk.cyan(chalk.bold(response)));
+      const { action } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'action',
+          message: 'What would you like to do?',
+          choices: ['Execute', 'Describe', 'Edit', 'Abort']
+        }
+      ]);
+
+      switch (action) {
+        case 'Execute':
+          await executeCommand(response);
+          break;
+        case 'Describe':
+          const descriptionPrompt = `Please describe what this command does: ${response}`;
+          const description = await callAnthropicApi(descriptionPrompt, "", false, options.smart, true, options.role);
+          console.log(chalk.magenta(`Command description:\n${description}`));
+          break;
+        case 'Edit':
+          const editedCommand = await editInEditor(response, `AI suggestion:\n${response}`);
+          console.log(chalk.cyan(`Edited command:\n${editedCommand}`));
+          const { executeEdited } = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'executeEdited',
+              message: 'Do you want to execute the edited command?',
+              default: false
+            }
+          ]);
+          if (executeEdited) {
+            await executeCommand(editedCommand);
+          }
+          break;
+        case 'Abort':
+          console.log(chalk.yellow("Aborted."));
+          break;
+      }
+    } else {
+      console.log(chalk.white(response));
+    }
+  } catch (error) {
+    console.error(chalk.red(`An error occurred: ${error.message}`));
+    process.exit(1);
+  }
+}
+catch (error) {
+    console.error(chalk.red(`An unexpected error occurred: ${error.message}`));
+    process.exit(1);
+}
+```
+
+This markdown file can now be executed using `mdexec`. The shebang line at the top specifies that it should be executed with Bun as the JavaScript runtime.
