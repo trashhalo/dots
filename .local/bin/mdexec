@@ -1,0 +1,159 @@
+#!/usr/bin/env bun
+
+import { program } from 'commander';
+import fs from 'fs/promises';
+import chalk from 'chalk';
+
+const log = (message, type = 'log') => {
+  if (options.verbose) {
+    console[type](message);
+  }
+};
+import { remark } from 'remark';
+import { visit } from 'unist-util-visit';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import tmp from 'tmp-promise';
+
+const execAsync = promisify(exec);
+
+program
+  .name('mdexec')
+  .description('CLI to extract and execute code blocks from markdown files')
+  .version('0.1.0')
+  .option('-f, --file <path>', 'Path to the markdown file (optional if used with shebang)')
+  .option('-l, --language <lang>', 'Specify the execution language')
+  .option('-e, --executor <command>', 'Command to execute the code (e.g., "python", "node")')
+  .option('-k, --keep', 'Keep the temporary file after execution')
+  .option('--dry-run', 'Extract code without executing')
+  .option('-v, --verbose', 'Verbose output')
+  .parse(process.argv);
+
+let options = program.opts();
+// Remove quotes from executor and language options
+options.executor = options.executor ? options.executor.replace(/^"|"$/g, '') : null;
+options.language = options.language ? options.language.replace(/^"|"$/g, '') : null;
+
+const extractCodeBlocks = async (content) => {
+  const codeBlocks = [];
+  const tree = await remark().parse(content);
+
+  visit(tree, 'code', (node) => {
+    codeBlocks.push({
+      lang: node.lang,
+      value: node.value,
+    });
+  });
+
+  return codeBlocks;
+};
+
+const createTempFile = async (code, extension) => {
+  const tmpFile = await tmp.file({
+    postfix: `.${extension}`,
+    keep: options.keep,
+  });
+  await fs.writeFile(tmpFile.path, code);
+  return tmpFile;
+};
+
+const executeCode = async (filePath, executor) => {
+  log(chalk.yellow(`Executing code with: ${executor} ${filePath}`));
+  try {
+    const { stdout, stderr } = await execAsync(`${executor} "${filePath}"`);
+    if (options.verbose) {
+      if (stdout) console.log(chalk.green('Output:'), stdout);
+      if (stderr) console.error(chalk.red('Errors:'), stderr);
+    } else {
+      // In non-verbose mode, just print the stdout without any additional messages
+      if (stdout) console.log(stdout.trim());
+    }
+  } catch (error) {
+    console.error(chalk.red(`Execution error: ${error.message}`));
+    if (options.verbose) {
+      if (error.stdout) console.log(chalk.yellow('Stdout:'), error.stdout);
+      if (error.stderr) console.error(chalk.red('Stderr:'), error.stderr);
+    }
+    process.exit(1);
+  }
+};
+
+const readInput = async () => {
+  if (options.file) {
+    return await fs.readFile(options.file, 'utf8');
+  } else if (process.argv.length > 2) {
+    const lastArg = process.argv[process.argv.length - 1];
+    if (!lastArg.startsWith('-')) {
+      return await fs.readFile(lastArg, 'utf8');
+    }
+  }
+
+  return await new Promise((resolve) => {
+    let data = '';
+    process.stdin.on('data', (chunk) => {
+      data += chunk;
+    });
+    process.stdin.on('end', () => {
+      resolve(data);
+    });
+    // Set a timeout to resolve if no data is received
+    setTimeout(() => {
+      if (!data) {
+        console.error(chalk.red('Error: No input received. Use -f <file>, provide a file as an argument, or pipe content to stdin.'));
+        process.exit(1);
+      }
+    }, 1000);
+  });
+};
+
+// Main execution
+(async () => {
+  try {
+    log(chalk.blue('Starting execution...'));
+    const content = await readInput();
+    log(chalk.blue('Input received.'));
+
+    log(chalk.blue('Extracting code blocks...'));
+    const codeBlocks = await extractCodeBlocks(content);
+
+    log(chalk.blue(`Found ${codeBlocks.length} code blocks`));
+
+    let allCode = '';
+    for (const block of codeBlocks) {
+      log(chalk.green(`Processing ${block.lang} code block`));
+      allCode += block.value + '\n\n';
+    }
+
+    if (!options.executor && !options.dryRun) {
+      // If no executor is specified, use the language of the first code block
+      options.executor = codeBlocks[0]?.lang || 'node';
+      log(chalk.yellow(`No executor specified. Using: ${options.executor}`));
+    }
+
+    if (!options.dryRun) {
+      const language = options.language || codeBlocks[0]?.lang || 'js';
+      log(chalk.blue(`Creating temporary file with language: ${language}`));
+      const tmpFile = await createTempFile(allCode, language);
+      
+      try {
+        log(chalk.blue(`Executing code with ${options.executor}`));
+        await executeCode(tmpFile.path, options.executor);
+      } finally {
+        if (options.keep) {
+          log(chalk.blue(`Temporary file kept at: ${tmpFile.path}`));
+        } else {
+          log(chalk.blue('Cleaning up temporary file'));
+          await tmpFile.cleanup();
+        }
+      }
+    } else {
+      log(chalk.yellow('Dry run: Code extracted but not executed'));
+      log(allCode);
+    }
+    log(chalk.green('Execution completed successfully.'));
+  } catch (error) {
+    console.error(chalk.red(`Error: ${error.message}`));
+    process.exit(1);
+  }
+})();
+/* vim: set ft=javascript : */
