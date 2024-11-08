@@ -6,8 +6,14 @@ capabilities.textDocument.foldingRange = {
 
 return {
 	"neovim/nvim-lspconfig",
+	dependencies = {
+		"lukas-reineke/lsp-format.nvim"
+	},
 	config = function()
 		local lspconfig = require('lspconfig')
+		local util = require('lspconfig.util')
+		local lsp_format = require('lsp-format')
+		lsp_format.setup {}
 		lspconfig.lua_ls.setup {
 			settings = {
 				Lua = {
@@ -15,7 +21,8 @@ return {
 						globals = { 'vim', 'require' }
 					}
 				}
-			}
+			},
+			on_attach = lsp_format.on_attach
 		}
 		lspconfig.yamlls.setup {
 			capabilities = capabilities,
@@ -36,5 +43,15 @@ return {
 		}
 		lspconfig.ts_ls.setup {}
 		lspconfig.tailwindcss.setup {}
+		lspconfig.terraformls.setup {}
+		lspconfig.lexical.setup {
+			cmd = { vim.fs.joinpath(vim.fn.expand("~"), "dev", "lexical", "_build", "dev", "package", "lexical", "bin", "start_lexical.sh") },
+			root_dir = function(fname)
+				return util.root_pattern("mix.exs", ".git")(fname) or vim.loop.cwd()
+			end,
+			filetypes = { "elixir", "eelixir", "heex" },
+			settings = {},
+			on_attach = lsp_format.on_attach
+		}
 	end
 }

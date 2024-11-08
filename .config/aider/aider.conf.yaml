@@ -1,4 +1,3 @@
 auto-commits: false
 cache-prompts: true
 subtree-only: true
-read: [README.md,~/.config/aider/documentation.md,~/.config/aider/guidelines.md]

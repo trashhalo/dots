@@ -5,3 +5,5 @@ neovim/
 lazy
 kitty-themes
 direnv/allow
+.aider*
+.env

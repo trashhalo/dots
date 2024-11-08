@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Default number of recent commits to consider
+DEFAULT_N_COMMITS=1000
+
+# Function to display usage information
+usage() {
+    echo "Usage: $0 [number_of_commits]"
+    echo "Lists files that existed in history but are now deleted"
+    echo "If number_of_commits is not provided, it defaults to $DEFAULT_N_COMMITS"
+    exit 1
+}
+
+# Check if the argument is a positive integer
+is_positive_integer() {
+    [[ $1 =~ ^[0-9]+$ ]] && (( $1 > 0 ))
+}
+
+# Parse command line argument
+if [ $# -eq 0 ]; then
+    N_COMMITS=$DEFAULT_N_COMMITS
+elif [ $# -eq 1 ]; then
+    if is_positive_integer "$1"; then
+        N_COMMITS=$1
+    else
+        echo "Error: Argument must be a positive integer."
+        usage
+    fi
+else
+    usage
+fi
+
+# Get list of all files that existed in recent history but are now deleted
+git log --all --pretty=format: --name-only -n "$N_COMMITS" | \
+    sort -u | \
+    while read -r file; do
+        # Skip empty lines
+        [ -z "$file" ] && continue
+        # Check if file doesn't exist now but did exist in history
+        if [ ! -e "$file" ] && git rev-list --all -n 1 -- "$file" > /dev/null 2>&1; then
+            commit=$(git log -n 1 --pretty=format:"%h" -- "$file")
+            echo "$file $commit"
+        fi
+    done

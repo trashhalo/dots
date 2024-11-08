@@ -5,10 +5,9 @@ return {
 		local formatters = require("format-on-save.formatters")
 		format_on_save.setup({
 			formatter_by_ft = {
-				elixir = formatters.lsp,
-				lua = formatters.lsp,
 				typescript = formatters.prettierd,
 				javascript = formatters.prettierd,
+				terraform = formatters.terraform_fmt,
 			},
 			experiments = {
 				partial_update = 'diff'

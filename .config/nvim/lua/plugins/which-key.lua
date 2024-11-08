@@ -14,6 +14,7 @@ return {
 		wk.add({
 			{ "<leader>",   group = "Leader" },
 			{ "<leader>c",  group = "Quickfix List" },
+			{ "<leader>g",  group = "Git" },
 			{ "<leader>j",  group = "Jump" },
 			{ "<leader>l",  group = "Location List" },
 			{ "<leader>s",  group = "Spectre" },
