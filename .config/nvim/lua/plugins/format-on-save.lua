@@ -7,6 +7,7 @@ return {
 			formatter_by_ft = {
 				typescript = formatters.prettierd,
 				javascript = formatters.prettierd,
+				css = formatters.prettierd,
 				terraform = formatters.terraform_fmt,
 			},
 			experiments = {
