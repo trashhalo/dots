@@ -22,6 +22,7 @@ return {
 				{ mode = 'n',          keys = '<Leader>s',  desc = '+Spectre' },
 				{ mode = 'n',          keys = '<Leader>t',  desc = '+Tabs' },
 				{ mode = 'n',          keys = '<Leader>x',  desc = '+Trouble' },
+				{ mode = 'n',          keys = '<Leader>w',  desc = '+Treewalker' },
 
 				-- Existing tab-related clues
 				{ mode = 'n',          keys = '<Leader>tn', desc = 'New Tab' },
@@ -45,7 +46,13 @@ return {
 				{ mode = 'n',          keys = '<Leader>gd', postkeys = '<Leader>g',   desc = 'Diff This' },
 				{ mode = 'n',          keys = '<Leader>gD', postkeys = '<Leader>g',   desc = 'Toggle Deleted' },
 				{ mode = 'n',          keys = '<Leader>gw', postkeys = '<Leader>g',   desc = 'Toggle Word Diff' },
-				{ mode = { 'o', 'x' }, keys = 'ih',         desc = 'Select Hunk' }
+				{ mode = { 'o', 'x' }, keys = 'ih',         desc = 'Select Hunk' },
+
+				-- Treewalker navigation with postkeys to stay in submode
+				{ mode = 'n',          keys = '<Leader>wj', postkeys = '<Leader>w',   desc = 'Down' },
+				{ mode = 'n',          keys = '<Leader>wk', postkeys = '<Leader>w',   desc = 'Up' },
+				{ mode = 'n',          keys = '<Leader>wh', postkeys = '<Leader>w',   desc = 'Left' },
+				{ mode = 'n',          keys = '<Leader>wl', postkeys = '<Leader>w',   desc = 'Right' }
 			},
 			window = {
 				-- Optional: Configure window behavior
@@ -57,4 +64,3 @@ return {
 		'echasnovski/mini.icons' -- Kept the original dependency
 	}
 }
-
