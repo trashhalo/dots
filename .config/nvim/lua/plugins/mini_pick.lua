@@ -36,41 +36,61 @@ local function recent_files_picker(opts)
 end
 
 local function changed_on_branch()
-	local MiniExtra = require('mini.extra')
+	local MiniPick = require('mini.pick')
 
-	local command = {
-		'git',
-		'diff',
-		'--relative',
-		'--name-only',
-		'--diff-filter=ACMR',
-		'origin...'
+	local git_commands = {
+		-- Staged changes
+		{ 'git', 'diff',     '--name-only', '--staged' },
+
+		-- Unstaged changes
+		{ 'git', 'diff',     '--name-only' },
+
+		-- Untracked files
+		{ 'git', 'ls-files', '--others',    '--exclude-standard' }
 	}
 
+	local function get_changed_files()
+		for _, cmd in ipairs(git_commands) do
+			local full_cmd = table.concat(cmd, ' ')
+			local result = vim.fn.systemlist(full_cmd)
+
+			-- Filter out empty lines
+			result = vim.tbl_filter(function(line)
+				return line ~= "" and line:match("%S")
+			end, result)
+
+			if #result > 0 then
+				return result
+			end
+		end
+		return {}
+	end
+
 	local preview = function(buf_id, item)
-		-- Show git diff for the specific file
 		local diff_cmd = {
 			'git',
 			'diff',
-			'--diff-filter=ACMR',
-			'origin...',
 			'--',
 			item
 		}
 		vim.bo[buf_id].filetype = 'diff'
-
-		-- Use CLI to show diff in preview
-		local lines = vim.fn.systemlist(table.concat(diff_cmd, ' '))
+		local lines = vim.fn.systemlist(diff_cmd)
 		vim.api.nvim_buf_set_lines(buf_id, 0, -1, false, lines)
 	end
 
-	MiniExtra.pickers.git_files({
-		path = '.',
-		command = command,
-	}, {
+	local changed_files = get_changed_files()
+
+	if #changed_files == 0 then
+		print("No changes found.")
+		return
+	end
+
+	MiniPick.start({
 		source = {
-			name = 'Changed on Branch',
-			preview = preview
+			items = changed_files,
+			name = 'Changed Files',
+			preview = preview,
+			show = MiniPick.default_show
 		}
 	})
 end
