@@ -2,6 +2,7 @@ just
 elixir-ls*
 lua-*
 neovim/
+.config/nvim/nvim/lazy/*
 lazy
 kitty-themes
 direnv/allow
