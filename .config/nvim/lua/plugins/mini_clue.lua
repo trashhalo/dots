@@ -9,8 +9,11 @@ return {
 				{ mode = 'n', keys = '<Leader>' },
 				{ mode = 'x', keys = '<Leader>' },
 				-- Tab navigation triggers
-				{ mode = 'n', keys = '[t' },
-				{ mode = 'n', keys = ']t' },
+				{ mode = 'n', keys = '[' },
+				{ mode = 'n', keys = ']' },
+				-- Misc triggers
+				{ mode = 'n', keys = 'g' },
+				{ mode = 'n', keys = 'z' },
 			},
 			clues = {
 				-- Leader key groups
@@ -21,8 +24,9 @@ return {
 				{ mode = 'n',          keys = '<Leader>l',  desc = '+Location List' },
 				{ mode = 'n',          keys = '<Leader>s',  desc = '+Spectre' },
 				{ mode = 'n',          keys = '<Leader>t',  desc = '+Tabs' },
-				{ mode = 'n',          keys = '<Leader>x',  desc = '+Trouble' },
+				{ mode = 'n',          keys = '<Leader>x',  desc = '+Diagnostics' },
 				{ mode = 'n',          keys = '<Leader>w',  desc = '+Treewalker' },
+				{ mode = 'n',          keys = 'z',          desc = '+Ufo' },
 
 				-- Existing tab-related clues
 				{ mode = 'n',          keys = '<Leader>tn', desc = 'New Tab' },
@@ -55,12 +59,17 @@ return {
 				{ mode = 'n',          keys = '<Leader>wl', postkeys = '<Leader>w',   desc = 'Right' }
 			},
 			window = {
-				-- Optional: Configure window behavior
-				delay = 300, -- Matches your original timeoutlen
-			}
+				config = {
+					width = 'auto',
+					anchor = 'SW',
+					col = 0
+				},
+				delay = 0
+			},
 		})
 	end,
 	dependencies = {
-		'echasnovski/mini.icons' -- Kept the original dependency
+		'echasnovski/mini.icons',
+		'dlants/magenta.nvim'
 	}
 }

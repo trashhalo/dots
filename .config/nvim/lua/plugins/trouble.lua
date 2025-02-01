@@ -2,8 +2,10 @@ return {
 	"folke/trouble.nvim",
 	enabled = true,
 	opts = {
+		follow = false,
 		auto_jump = true,
 		auto_preview = false,
+		auto_refresh = false
 	},
 	cmd = "Trouble",
 	keys = {

@@ -43,6 +43,13 @@ return {
 						sapphire = "#2D5A8A"
 					},
 				},
+				highlight_overrides = {
+					all = function(colors)
+						return {
+							MiniPickMatchCurrent = { bg = colors.surface1 },
+						}
+					end,
+				},
 			})
 			vim.cmd.colorscheme "catppuccin"
 		end

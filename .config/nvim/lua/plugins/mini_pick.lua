@@ -95,6 +95,30 @@ local function changed_on_branch()
 	})
 end
 
+local split_and_return = function()
+	local pick = require('mini.pick')
+	local item = pick.get_picker_matches().current
+	if item == nil then return true end
+
+	local picker_state = pick.get_picker_state()
+	local target_window = picker_state.windows.target
+
+	-- Store current cursor position and current buffer
+	local current_buffer = vim.api.nvim_win_get_buf(target_window)
+
+	-- Create split
+	vim.api.nvim_win_call(target_window, function()
+		pick.default_choose(item)
+		vim.cmd('vsplit')
+		-- set to original buffer
+		vim.api.nvim_win_set_buf(0, current_buffer)
+		-- move focus back back
+		pick.set_picker_target_window(vim.api.nvim_get_current_win())
+	end)
+
+	return true
+end
+
 return {
 	"echasnovski/mini.pick",
 	version = false,
@@ -103,7 +127,14 @@ return {
 		"echasnovski/mini.extra"
 	},
 	config = function()
-		require('mini.pick').setup()
+		require('mini.pick').setup({
+			mappings = {
+				choose_vsplit_stay = {
+					char = '<A-v>',
+					func = split_and_return
+				}
+			},
+		})
 		require("mini.extra").setup({})
 	end,
 	keys = {
@@ -124,10 +155,19 @@ return {
 			desc = "Document Symbols (MiniPick)"
 		},
 		{
+			"<leader>jw",
+			function() require('mini.extra').pickers.lsp({ scope = 'workspace_symbol' }) end,
+			desc = "Workspace Symbols (MiniPick)"
+		},
+		{
 			"<leader>jc",
 			function() require('mini.extra').pickers.commands() end,
 			desc = "Commands (MiniPick)"
 		},
-
+		{
+			"<leader>jg",
+			function() require('mini.pick').builtin.grep_live() end,
+			desc = "Grep Live (MiniPick)"
+		}
 	},
 }
