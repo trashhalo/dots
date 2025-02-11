@@ -1,38 +1,55 @@
--- Local helper functions for Elixir treesitter formatting
-local function transform_elixir(item)
-	print("Transform called with item:", vim.inspect(item))
-	if item.kind == "Function" then
-		print("  Is function")
-		-- Check if we're in an Elixir file
-		local bufnr = item.buf
-		local ft = vim.api.nvim_buf_get_option(bufnr, "filetype")
-		if ft == "elixir" then
-			print("  Is Elixir file")
-			-- Get the lines around the function definition
-			local start_line = item.pos[1]
-			local lines = vim.api.nvim_buf_get_lines(bufnr, start_line - 1, start_line + 1, false)
-			local def_line = lines[1] or ""
-			print("  Def line:", def_line)
+local function create_method_picker(opts)
+	local cmd = "sg"
+	local args = {
+		"run",
+		"--pattern",
+		"$VISIBILITY $METHOD_NAME($$$ARGS) do $_BODY",
+		"--json=stream"
+	}
 
-			-- Extract function name and arguments
-			local name = item.name
-			print("  Name:", name)
-			local args = def_line:match("def%s+" .. name .. "%s*%((.-)%)") or
-			    def_line:match("defp%s+" .. name .. "%s*%((.-)%)")
-			print("  Args:", args)
+	-- Get current buffer's file path
+	local current_file = vim.api.nvim_buf_get_name(0)
+	table.insert(args, current_file)
 
-			if args then
-				-- Clean up args and count arity
-				args = vim.trim(args)
-				local arity = #(args:gsub("[^,]", "")) + 1
-				item.text = string.format("%s/%d (%s)", name, arity, args)
-				item.args = args
+	return require("snacks.picker.source.proc").proc({
+		opts,
+		{
+			cmd = cmd,
+			args = args,
+			transform = function(item)
+				local success, json_data = pcall(vim.json.decode, item.text)
+				if not success then
+					return false
+				end
+
+				-- Extract method information
+				local method_name = json_data.metaVariables.single.METHOD_NAME.text
+				local args = {}
+				if json_data.metaVariables.multi.ARGS then
+					for _, arg in ipairs(json_data.metaVariables.multi.ARGS) do
+						if arg.text ~= "," then
+							local clean_arg = arg.text:gsub("%s+", "")
+							table.insert(args, clean_arg)
+						end
+					end
+				end
+
+				-- Calculate arity
+				local arity = #args
+				local params_text = table.concat(args, ",")
+
+				-- Format item to match Treesitter format
+				item.kind = "Function"
+				item.name = method_name
+				item.args = params_text
 				item.arity = arity
-				print("  Processed:", item.text)
-			end
-		end
-	end
-	return item
+				item.file = json_data.file
+				item.pos = { json_data.range.start.line + 1, json_data.range.start.column }
+
+				return item
+			end,
+		},
+	}, opts.ctx)
 end
 
 local function format_elixir(item, picker)
@@ -109,29 +126,17 @@ return {
 			{ "<leader>jf", function() snacks.picker.files() end,      desc = "Jump to File" },
 			{ "<leader>jb", function() snacks.picker.git_status() end, desc = "Jump to Changed Files" },
 			{ "<leader>jk", function() snacks.picker.keymaps() end,    desc = "Jump to Keymap" },
+
 			{
 				"<leader>jm",
 				function()
-					snacks.picker.treesitter({
+					snacks.picker.pick({
+						finder = create_method_picker,
 						layout = { preset = "vertical" },
-						filter = {
-							default = {
-								"Function",
-								"Method"
-							}
-						},
-						transform = function(item)
-							-- Skip nested duplicates
-							if item.parent and item.parent.kind == item.kind and item.parent.name == item.name then
-								return false
-							end
-							-- Apply Elixir-specific transforms
-							return transform_elixir(item)
-						end,
-						format = format_elixir
+						format = format_elixir -- Using the same formatter as before
 					})
 				end,
-				desc = "Jump to Document Symbol"
+				desc = "Jump to Method"
 			},
 			{ "<leader>jw", function() snacks.picker.lsp_workspace_symbols() end, desc = "Jump to Workspace Symbol" },
 			{ "<leader>jc", function() snacks.picker.commands() end,              desc = "Jump to Command" },
