@@ -1,4 +1,5 @@
 vim.g.mapleader = " "         -- using space as leader key
+vim.g.maplocalleader = ','    -- using comma as local leader key
 vim.opt.relativenumber = true -- enable relative number
 vim.opt.background = "light"  -- set background to light
 vim.opt.wrap = false          -- disable word wrap

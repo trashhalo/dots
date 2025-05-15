@@ -44,17 +44,7 @@ return {
 		lspconfig.ts_ls.setup {}
 		lspconfig.tailwindcss.setup {}
 		lspconfig.terraformls.setup {}
-		--[[
-		lspconfig.lexical.setup {
-			cmd = { vim.fs.joinpath(vim.fn.expand("~"), "dev", "lexical", "_build", "dev", "package", "lexical", "bin", "start_lexical.sh") },
-			root_dir = function(fname)
-				return util.root_pattern("mix.exs", ".git")(fname) or vim.loop.cwd()
-			end,
-			filetypes = { "elixir", "eelixir", "heex" },
-			settings = {},
-			on_attach = lsp_format.on_attach
-		}
-		--]]
+
 		lspconfig.elixirls.setup {
 			-- homebrew install
 			cmd = { vim.fn.expand("/opt/homebrew/bin/elixir-ls") },
@@ -69,6 +59,10 @@ return {
 				}
 			},
 			on_attach = lsp_format.on_attach,
+		}
+
+		lspconfig.buf_ls.setup {
+			on_attach = lsp_format.on_attach
 		}
 	end
 }

@@ -8,6 +8,7 @@ return {
 				typescript = formatters.prettierd,
 				javascript = formatters.prettierd,
 				css = formatters.prettierd,
+				markdown = formatters.prettierd,
 				terraform = formatters.terraform_fmt,
 			},
 			experiments = {

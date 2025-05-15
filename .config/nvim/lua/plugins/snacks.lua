@@ -1,4 +1,4 @@
-local function create_method_picker(opts)
+local function create_method_picker(opts, ctx)
 	local cmd = "sg"
 	local args = {
 		"run",
@@ -49,7 +49,7 @@ local function create_method_picker(opts)
 				return item
 			end,
 		},
-	}, opts.ctx)
+	}, ctx)
 end
 
 local function format_elixir(item, picker)
@@ -81,40 +81,56 @@ end
 
 return {
 	"folke/snacks.nvim",
-	opts = {
-		picker = {
-			-- UI configuration
-			layout = { preset = "default" },
-			icons = {
-				files = { enabled = true },
-				git = { enabled = true },
+	lazy = false,
+	priority = 1000,
+	opts = function(_, opts)
+		return vim.tbl_deep_extend("force", opts or {}, {
+			words = {
 			},
-			-- Configure sources to modify how LSP symbols work
-			sources = {},
+			picker = {
+				-- UI configuration
+				layout = { preset = "default" },
+				icons = {
+					files = { enabled = true },
+					git = { enabled = true },
+				},
+				-- Configure sources to modify how LSP symbols work
+				sources = {},
 
-			-- Rest of your config...
-			win = {
-				input = {
-					keys = {
-						["<A-v>"] = {
-							function(picker, item)
-								if item then
-									local cur_win = vim.api.nvim_get_current_win()
-									vim.cmd("vsplit")
-									if item.file then
-										vim.cmd("edit " .. item.file)
+				actions = require("trouble.sources.snacks").actions,
+
+				win = {
+					input = {
+						keys = {
+							["<c-t>"] = {
+								"trouble_open",
+								mode = { "n", "i" },
+							},
+							["<A-v>"] = {
+								function(picker, item)
+									if item then
+										local cur_win = vim.api
+										    .nvim_get_current_win()
+										vim.cmd("vsplit")
+										if item.file then
+											vim.cmd("edit " .. item.file)
+										end
+										vim.api.nvim_set_current_win(cur_win)
 									end
-									vim.api.nvim_set_current_win(cur_win)
-								end
-							end,
-							mode = { "n", "i" },
-							desc = "Vertical split and stay",
+								end,
+								mode = { "n", "i" },
+								desc = "Vertical split and stay",
+							},
 						},
 					},
 				},
 			},
-		},
-	},
+			dim = {
+			},
+			toggle = {
+			},
+		})
+	end,
 	keys = function()
 		local snacks = require("snacks")
 
@@ -130,6 +146,11 @@ return {
 			{
 				"<leader>jm",
 				function()
+					-- if syntax is elixir otherwise use Snacks.picker.lsp_symbols()
+					local filetype = vim.api.nvim_buf_get_option(0, "filetype")
+					if filetype ~= "elixir" then
+						return snacks.picker.lsp_symbols()
+					end
 					snacks.picker.pick({
 						finder = create_method_picker,
 						layout = { preset = "vertical" },
@@ -138,29 +159,39 @@ return {
 				end,
 				desc = "Jump to Method"
 			},
-			{ "<leader>jw", function() snacks.picker.lsp_workspace_symbols() end, desc = "Jump to Workspace Symbol" },
-			{ "<leader>jc", function() snacks.picker.commands() end,              desc = "Jump to Command" },
-			{ "<leader>jg", function() snacks.picker.grep({ live = true }) end,   desc = "Jump to Text (Grep)" },
-			{ "<leader>jr", function() snacks.picker.recent() end,                desc = "Jump to Recent" },
-			{ "<leader>jh", function() snacks.picker.help() end,                  desc = "Jump to Help" },
+			{ "<leader>jw",  function() snacks.picker.lsp_workspace_symbols() end, desc = "Jump to Workspace Symbol" },
+			{ "<leader>jc",  function() snacks.picker.commands() end,              desc = "Jump to Command" },
+			{ "<leader>jg",  function() snacks.picker.grep({ live = true }) end,   desc = "Jump to Text (Grep)" },
+			{ "<leader>jr",  function() snacks.picker.recent() end,                desc = "Jump to Recent" },
+			{ "<leader>jh",  function() snacks.picker.help() end,                  desc = "Jump to Help" },
 
 			-- Git group (matching your <Leader>g group)
-			{ "<leader>gb", function() snacks.picker.git_branches() end,          desc = "Git Branches" },
-			{ "<leader>gl", function() snacks.picker.git_log() end,               desc = "Git Log" },
-			{ "<leader>gL", function() snacks.picker.git_log_line() end,          desc = "Git Log (Current Line)" },
-			{ "<leader>gs", function() snacks.picker.git_status() end,            desc = "Git Status" },
-			{ "<leader>gf", function() snacks.picker.git_files() end,             desc = "Git Files" },
+			{ "<leader>jib", function() snacks.picker.git_branches() end,          desc = "Git Branches" },
+			{ "<leader>jil", function() snacks.picker.git_log() end,               desc = "Git Log" },
+			{ "<leader>jiL", function() snacks.picker.git_log_line() end,          desc = "Git Log (Current Line)" },
+			{ "<leader>jis", function() snacks.picker.git_status() end,            desc = "Git Status" },
+			{ "<leader>jif", function() snacks.picker.git_files() end,             desc = "Git Files" },
 
 			-- Search/Symbol group
-			{ "<leader>sb", function() snacks.picker.buffers() end,               desc = "Search Buffers" },
-			{ "<leader>sd", function() snacks.picker.diagnostics() end,           desc = "Search Diagnostics" },
-			{ "<leader>sg", function() snacks.picker.grep({ live = true }) end,   desc = "Search Text (Grep)" },
-			{ "<leader>sr", function() snacks.picker.resume() end,                desc = "Search Resume" },
+			{ "<leader>jsb", function() snacks.picker.buffers() end,               desc = "Search Buffers" },
+			{ "<leader>jsd", function() snacks.picker.diagnostics() end,           desc = "Search Diagnostics" },
+			{ "<leader>jsg", function() snacks.picker.grep({ live = true }) end,   desc = "Search Text (Grep)" },
+			{ "<leader>jsr", function() snacks.picker.resume() end,                desc = "Search Resume" },
 
 			-- LSP related (can be triggered with standard gd, gr, etc.)
-			{ "gd",         function() snacks.picker.lsp_definitions() end,       desc = "Goto Definition" },
-			{ "gr",         function() snacks.picker.lsp_references() end,        desc = "Goto References" },
-			{ "gI",         function() snacks.picker.lsp_implementations() end,   desc = "Goto Implementation" },
+			{ "gd",          function() snacks.picker.lsp_definitions() end,       desc = "Goto Definition" },
+			{ "gr",          function() snacks.picker.lsp_references() end,        desc = "Goto References" },
+			{ "gI",          function() snacks.picker.lsp_implementations() end,   desc = "Goto Implementation" },
 		}
+	end,
+	init = function()
+		vim.api.nvim_create_autocmd("User", {
+			pattern = "VeryLazy",
+			callback = function()
+				local snacks = require("snacks")
+				snacks.toggle.dim():map("<leader>ud")
+				snacks.toggle.inlay_hints():map("<leader>uh")
+			end,
+		})
 	end,
 }

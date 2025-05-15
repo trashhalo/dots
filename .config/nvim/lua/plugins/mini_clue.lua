@@ -88,6 +88,7 @@ return {
 				{ mode = 'n', keys = ']' }, -- next item navigation
 				{ mode = 'n', keys = '[' }, -- previous item navigation
 				{ mode = 'n', keys = '<C-w>' }, -- window commands
+				{ mode = 'n', keys = ',' }, -- local leader
 			},
 			clues = {
 				-- Leader key groups
@@ -95,12 +96,15 @@ return {
 				{ mode = 'n',          keys = '<Leader>c',  desc = '+Quickfix List' },
 				{ mode = 'n',          keys = '<Leader>g',  desc = '+Git' },
 				{ mode = 'n',          keys = '<Leader>j',  desc = '+Jump' },
+				{ mode = 'n',          keys = '<Leader>ji', desc = '+Jump Git' },
+				{ mode = 'n',          keys = '<Leader>js', desc = '+Jump Symbol' },
 				{ mode = 'n',          keys = '<Leader>l',  desc = '+Location List' },
-				{ mode = 'n',          keys = '<Leader>s',  desc = '+Spectre' },
+				{ mode = 'n',          keys = '<Leader>s',  desc = '+Grug Far' },
 				{ mode = 'n',          keys = '<Leader>t',  desc = '+Tabs' },
 				{ mode = 'n',          keys = '<Leader>x',  desc = '+Diagnostics' },
 				{ mode = 'n',          keys = '<Leader>w',  desc = '+Treewalker' },
 				{ mode = 'n',          keys = '<Leader>f',  desc = '+Format' },
+				{ mode = 'n',          keys = '<Leader>o',  desc = '+Toggle' },
 
 				-- Existing tab-related clues
 				{ mode = 'n',          keys = '<Leader>tn', desc = 'New Tab' },
@@ -112,8 +116,8 @@ return {
 				{ mode = 'n',          keys = '<A->>',      desc = 'Move Tab Right' },
 
 				-- Git submode clues with postkeys
-				{ mode = 'n',          keys = '<Leader>gj', postkeys = '<Leader>g',   desc = 'Next Hunk' },
-				{ mode = 'n',          keys = '<Leader>gk', postkeys = '<Leader>g',   desc = 'Previous Hunk' },
+				{ mode = 'n',          keys = '<Leader>gj', postkeys = ']g',          desc = 'Next Hunk' },
+				{ mode = 'n',          keys = '<Leader>gk', postkeys = '[g',          desc = 'Previous Hunk' },
 				{ mode = 'n',          keys = '<Leader>gs', postkeys = '<Leader>g',   desc = 'Stage Hunk' },
 				{ mode = 'n',          keys = '<Leader>gr', postkeys = '<Leader>g',   desc = 'Reset Hunk' },
 				{ mode = 'n',          keys = '<Leader>gS', postkeys = '<Leader>g',   desc = 'Stage Buffer' },
