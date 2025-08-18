@@ -8,3 +8,6 @@ kitty-themes
 direnv/allow
 .aider*
 .env
+*.lance
+**/__pycache__
+*.html

@@ -25,7 +25,7 @@ export MISE_ENV_FILE=.env
 
 # 6. FZF options and aliases
 set fzf_fd_opts --hidden --max-depth 5
-alias lazy_commit="git diff --cached | sgpt -s \"Generate git commit message, for my changes. never use git add.\""
+alias lazy_commit="git diff --cached | claude -p \"Generate git commit message, for my changes\""
 alias lazy_branch="git diff --cached | sgpt -s \"Create branch name based on the changes\""
 alias lazy_pr="gh pr create --fill && gh pr merge --auto --squash"
 alias aider="aider --config $HOME/.config/aider/aider.conf.yaml"

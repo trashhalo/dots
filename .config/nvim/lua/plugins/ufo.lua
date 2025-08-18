@@ -18,6 +18,13 @@ return {
 			desc = ' 󱃄 Close All Folds',
 		},
 		{
+			'z0',
+			function()
+				require('ufo').closeFoldsWith(0)
+			end,
+			desc = ' 󱃄 Close L0 Folds',
+		},
+		{
 			'z1',
 			function()
 				require('ufo').closeFoldsWith(1)

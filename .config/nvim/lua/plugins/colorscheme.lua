@@ -5,6 +5,19 @@ return {
 		priority = 1000,
 	},
 	{
+		"neanias/everforest-nvim",
+		lazy = false,
+		priority = 1000,
+		config = function()
+			require("everforest").setup({
+				background = "hard",
+				ui_contrast = "high",
+				italics = false,
+				disable_italic_comments = true,
+			})
+		end
+	},
+	{
 		"catppuccin/nvim",
 		name = "catppuccin",
 		priority = 1000,
@@ -65,7 +78,7 @@ return {
 			update_interval = 1000,
 			set_dark_mode = function()
 				vim.api.nvim_set_option_value("background", "dark", {})
-				vim.cmd.colorscheme 'catppuccin'
+				vim.cmd.colorscheme 'everforest'
 			end,
 			set_light_mode = function()
 				vim.api.nvim_set_option_value("background", "light", {})
