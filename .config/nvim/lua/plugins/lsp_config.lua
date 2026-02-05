@@ -46,12 +46,11 @@ return {
 		lspconfig.tailwindcss.setup {}
 		lspconfig.terraformls.setup {}
 
-		lspconfig.elixirls.setup {
-			-- homebrew install
-			cmd = { vim.fn.expand("/opt/homebrew/bin/elixir-ls") },
-			root_dir = function(fname)
-				return util.root_pattern("mix.exs", ".git")(fname) or vim.loop.cwd()
-			end,
+		-- Use Neovim 0.11's built-in LSP config for ElixirLS
+		vim.lsp.config('elixirls', {
+			cmd = { '/opt/homebrew/bin/elixir-ls' },
+			root_markers = { 'mix.exs', '.git' },
+			filetypes = { 'elixir', 'eelixir', 'heex' },
 			settings = {
 				elixirLS = {
 					autoBuild = true,
@@ -59,8 +58,19 @@ return {
 					suggestSpecs = false,
 				}
 			},
-			on_attach = lsp_format.on_attach,
-		}
+		})
+
+		-- Hook up lsp-format for ElixirLS
+		vim.api.nvim_create_autocmd("LspAttach", {
+			callback = function(args)
+				local client = vim.lsp.get_client_by_id(args.data.client_id)
+				if client and client.name == "elixirls" then
+					lsp_format.on_attach(client, args.buf)
+				end
+			end,
+		})
+
+		vim.lsp.enable('elixirls')
 
 		lspconfig.buf_ls.setup {
 			on_attach = lsp_format.on_attach

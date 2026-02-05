@@ -13,6 +13,7 @@ return {
 				}, {}),
 				f = spec_treesitter({ a = "@function.outer", i = "@function.inner" }, {}),
 				c = spec_treesitter({ a = "@class.outer", i = "@class.inner" }, {}),
+				s = spec_treesitter({ a = "@section.outer", i = "@section.inner" }, {}),
 			},
 		})
 	end,

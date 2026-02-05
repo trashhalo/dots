@@ -1,0 +1,32 @@
+{
+  "agent": {
+    "always_allow_tool_actions": true,
+    "default_model": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-latest",
+    },
+    "model_parameters": [],
+  },
+  "vim_mode": true,
+  "vim": {
+    "use_system_clipboard": "always",
+  },
+  "theme": {
+    "mode": "system",
+    "light": "SunnyDay",
+    "dark": "Everforest Dark Hard",
+  },
+  "buffer_font_family": "FiraCode Nerd Font Mono",
+  "buffer_font_size": 10,
+  "languages": {
+    "Python": {
+      "language_servers": ["ty"],
+      "formatter": {
+        "external": {
+          "command": "uvx",
+          "arguments": ["black", "--stdin-filename", "{buffer_path}", "-"],
+        },
+      },
+    },
+  },
+}

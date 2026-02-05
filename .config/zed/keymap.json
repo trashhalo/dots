@@ -1,0 +1,16 @@
+[
+  {
+    "bindings": {
+      "ctrl-alt-cmd-p": "command_palette::Toggle",
+      "ctrl-alt-cmd-a": "agent::ToggleFocus",
+      "ctrl-alt-cmd-d": "diagnostics::Deploy",
+      "ctrl-alt-cmd-o": "outline::Toggle",
+      "ctrl-alt-cmd-g": "pane::DeploySearch",
+      "ctrl-alt-cmd-s": "project_symbols::Toggle",
+      "ctrl-alt-cmd-r": "projects::OpenRecent",
+      "ctrl-alt-cmd-b": "tab_switcher::Toggle",
+      "ctrl-alt-cmd-t": "workspace::NewTerminal",
+      "ctrl-alt-cmd-f": "file_finder::Toggle"
+    }
+  }
+]

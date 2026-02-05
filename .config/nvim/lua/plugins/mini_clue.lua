@@ -15,6 +15,41 @@ local g_clues = {
 	{ mode = 'x', keys = 'gq', desc = 'Format selection' },
 }
 
+-- Text object clues (work in visual and operator-pending modes)
+-- These show AFTER pressing 'a' or 'i' triggers
+local function gen_textobj_clues()
+	local textobjs = {
+		-- Custom treesitter objects
+		{ key = 'f', desc = 'function' },
+		{ key = 'c', desc = 'class / markdown heading' },
+		{ key = 's', desc = 'section (markdown) / sentence' },
+		{ key = 'o', desc = 'block/conditional/loop' },
+		-- Built-in objects
+		{ key = 'w', desc = 'word' },
+		{ key = 'W', desc = 'WORD' },
+		{ key = 'p', desc = 'paragraph' },
+		{ key = '[', desc = '[]' },
+		{ key = '(', desc = '()' },
+		{ key = '{', desc = '{}' },
+		{ key = '<', desc = '<>' },
+		{ key = 't', desc = 'tag' },
+		{ key = '"', desc = '"' },
+		{ key = "'", desc = "'" },
+		{ key = '`', desc = '`' },
+	}
+
+	local clues = {}
+	for _, obj in ipairs(textobjs) do
+		table.insert(clues, { mode = 'x', keys = 'a' .. obj.key, desc = 'Around ' .. obj.desc })
+		table.insert(clues, { mode = 'x', keys = 'i' .. obj.key, desc = 'Inner ' .. obj.desc })
+		table.insert(clues, { mode = 'o', keys = 'a' .. obj.key, desc = 'Around ' .. obj.desc })
+		table.insert(clues, { mode = 'o', keys = 'i' .. obj.key, desc = 'Inner ' .. obj.desc })
+	end
+	return clues
+end
+
+local textobj_clues = gen_textobj_clues()
+
 -- Practical z commands focusing on folds and scrolling
 local z_clues = {
 	-- Folds
@@ -81,6 +116,7 @@ return {
 				{ mode = 'n', keys = '<Leader>' },
 				{ mode = 'x', keys = '<Leader>' },
 				{ mode = 'n', keys = 'g' }, -- goto/global commands
+				{ mode = 'x', keys = 'g' }, -- goto/global commands in visual
 				{ mode = 'n', keys = 'z' }, -- fold/view commands
 				{ mode = 'n', keys = 'c' }, -- change commands
 				{ mode = 'n', keys = 'd' }, -- delete commands
@@ -89,11 +125,17 @@ return {
 				{ mode = 'n', keys = '[' }, -- previous item navigation
 				{ mode = 'n', keys = '<C-w>' }, -- window commands
 				{ mode = 'n', keys = ',' }, -- local leader
+				-- Text object triggers
+				{ mode = 'x', keys = 'a' }, -- around text objects in visual
+				{ mode = 'x', keys = 'i' }, -- inner text objects in visual
+				{ mode = 'o', keys = 'a' }, -- around text objects in operator-pending
+				{ mode = 'o', keys = 'i' }, -- inner text objects in operator-pending
 			},
 			clues = {
 				-- Leader key groups
 				{ mode = 'n',          keys = '<Leader>',   desc = '+Leader' },
 				{ mode = 'n',          keys = '<Leader>c',  desc = '+Quickfix List' },
+				{ mode = 'n',          keys = '<Leader>d',  desc = '+Todo.txt' },
 				{ mode = 'n',          keys = '<Leader>g',  desc = '+Git' },
 				{ mode = 'n',          keys = '<Leader>j',  desc = '+Jump' },
 				{ mode = 'n',          keys = '<Leader>ji', desc = '+Jump Git' },
@@ -105,6 +147,10 @@ return {
 				{ mode = 'n',          keys = '<Leader>w',  desc = '+Treewalker' },
 				{ mode = 'n',          keys = '<Leader>f',  desc = '+Format' },
 				{ mode = 'n',          keys = '<Leader>o',  desc = '+Toggle' },
+
+				-- Local leader groups (for todo.txt)
+				{ mode = 'n',          keys = ',',          desc = '+Local Leader' },
+				{ mode = 'n',          keys = ',s',         desc = '+Sort' },
 
 				-- Existing tab-related clues
 				{ mode = 'n',          keys = '<Leader>tn', desc = 'New Tab' },
@@ -137,6 +183,7 @@ return {
 				g_clues,
 				z_clues,
 				c_clues,
+				textobj_clues,
 				miniclue.gen_clues.marks(),
 				miniclue.gen_clues.registers(),
 				miniclue.gen_clues.windows(),

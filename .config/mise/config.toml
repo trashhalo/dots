@@ -1,7 +1,8 @@
 [tools]
 go = "latest"
-"npm:@anthropic-ai/claude-code" = "latest"
-"ubi:Clause-Logic/vuln-aggregator" = "latest"
+node = "24.11.0"
+bun = "latest"
+usage = "latest"
 
 [settings]
 experimental = true

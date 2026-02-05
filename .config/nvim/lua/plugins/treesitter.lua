@@ -3,7 +3,7 @@ return {
 	enabled = true,
 	config = function()
 		require("nvim-treesitter.configs").setup({
-			ensure_installed = { "elixir", "eex", "heex", "lua", "markdown", "yaml", "javascript", "typescript", "go", "gotmpl" },
+			ensure_installed = { "elixir", "eex", "heex", "lua", "markdown", "yaml", "javascript", "typescript", "go", "gotmpl", "todotxt" },
 			highlight = { enable = true, additional_vim_regex_highlighting = false },
 			indent = { enable = true },
 			inject = {
