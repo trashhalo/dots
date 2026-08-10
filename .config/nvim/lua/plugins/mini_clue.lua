@@ -137,14 +137,16 @@ return {
 				{ mode = 'n',          keys = '<Leader>c',  desc = '+Quickfix List' },
 				{ mode = 'n',          keys = '<Leader>d',  desc = '+Todo.txt' },
 				{ mode = 'n',          keys = '<Leader>g',  desc = '+Git' },
+				{ mode = 'n',          keys = '<Leader>a',  desc = '+ACP (chat)' },
 				{ mode = 'n',          keys = '<Leader>j',  desc = '+Jump' },
+				{ mode = 'n',          keys = '<Leader>jc', desc = '+Jump Claude / ACP' },
 				{ mode = 'n',          keys = '<Leader>ji', desc = '+Jump Git' },
 				{ mode = 'n',          keys = '<Leader>js', desc = '+Jump Symbol' },
 				{ mode = 'n',          keys = '<Leader>l',  desc = '+Location List' },
+				{ mode = 'n',          keys = '<Leader>n',  desc = '+Notes (Obsidian)' },
 				{ mode = 'n',          keys = '<Leader>s',  desc = '+Grug Far' },
 				{ mode = 'n',          keys = '<Leader>t',  desc = '+Tabs' },
 				{ mode = 'n',          keys = '<Leader>x',  desc = '+Diagnostics' },
-				{ mode = 'n',          keys = '<Leader>w',  desc = '+Treewalker' },
 				{ mode = 'n',          keys = '<Leader>f',  desc = '+Format' },
 				{ mode = 'n',          keys = '<Leader>o',  desc = '+Toggle' },
 
@@ -175,11 +177,8 @@ return {
 				{ mode = 'n',          keys = '<Leader>gw', postkeys = '<Leader>g',   desc = 'Toggle Word Diff' },
 				{ mode = { 'o', 'x' }, keys = 'ih',         desc = 'Select Hunk' },
 
-				-- Treewalker navigation with postkeys to stay in submode
-				{ mode = 'n',          keys = '<Leader>wj', postkeys = '<Leader>w',   desc = 'Down' },
-				{ mode = 'n',          keys = '<Leader>wk', postkeys = '<Leader>w',   desc = 'Up' },
-				{ mode = 'n',          keys = '<Leader>wh', postkeys = '<Leader>w',   desc = 'Left' },
-				{ mode = 'n',          keys = '<Leader>wl', postkeys = '<Leader>w',   desc = 'Right' },
+				-- Window management
+				{ mode = 'n',          keys = '<C-w>z',     desc = 'Zoom window' },
 				g_clues,
 				z_clues,
 				c_clues,

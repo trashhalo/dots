@@ -1,54 +1,42 @@
 return {
-	"nvim-treesitter/nvim-treesitter",
-	enabled = true,
+	"romus204/tree-sitter-manager.nvim",
+	lazy = false,
+	priority = 1000,
 	config = function()
-		require("nvim-treesitter.configs").setup({
-			ensure_installed = { "elixir", "eex", "heex", "lua", "markdown", "yaml", "javascript", "typescript", "go", "gotmpl", "todotxt" },
-			highlight = { enable = true, additional_vim_regex_highlighting = false },
-			indent = { enable = true },
-			inject = {
-				enable = true,
-				custom = {
-					-- Inject gotmpl into markdown
-					["gotmpl"] = {
-						["markdown.gotmpl"] = {
-							query = [[
-            						  ((inline) @gotmpl)
-            						  ((text) @gotmpl)
-          						]],
-							filter = function(lang, bufnr, match, metadata)
-								local node_text = vim.treesitter.get_node_text(match[1],
-									bufnr)
-								return node_text:match("{{") ~= nil
-							end
-						}
-					}
-				}
+		require("tree-sitter-manager").setup({
+			ensure_installed = {
+				"elixir",
+				"eex",
+				"heex",
+				"lua",
+				"markdown",
+				"markdown_inline",
+				"yaml",
+				"javascript",
+				"typescript",
+				"go",
+				"gotmpl",
+				"templ",
+				"todotxt",
+			},
+			auto_install = true,
+			highlight = true,
+		})
 
+		vim.filetype.add({
+			extension = {
+				["md.eex"] = "markdown.eex",
+				["html.heex"] = "html.heex",
+				["md.tmpl"] = "markdown.gotexttmpl",
 			},
 		})
-		vim.filetype.add({
-			extension = {
-				['md.eex'] = 'markdown.eex'
-			}
-		})
-		vim.filetype.add({
-			extension = {
-				['html.heex'] = 'html.heex'
-			}
-		})
+
 		vim.api.nvim_create_autocmd({ "BufNewFile", "BufRead" }, {
 			pattern = "*.md.tmpl",
 			callback = function(ev)
-				-- Set the filetype to markdown.gotexttmpl to inherit from both
 				vim.bo[ev.buf].filetype = "markdown.gotexttmpl"
 			end,
-			desc = "Set custom filetype for markdown template files"
-		})
-		vim.filetype.add({
-			extension = {
-				["md.tmpl"] = "markdown.gotexttmpl"
-			}
+			desc = "Set custom filetype for markdown template files",
 		})
 	end,
 }

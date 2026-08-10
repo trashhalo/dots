@@ -6,7 +6,21 @@ vim.opt.wrap = false          -- disable word wrap
 vim.g.notimeout = true        -- disable timeout, which means that mappings will wait for the next key
 vim.g.nottimeout = true       -- disable ttimmeout, the differnce between timeout and ttimeout is that the latter is for keycodes that are part of a sequence
 vim.opt.directory = "/tmp/nvim"
-require("keymap")             -- load keymap.lua
+vim.opt.autoread = true       -- reload files changed outside of nvim
+vim.opt.mouse = "a"           -- enable mouse in all modes incl. terminal (scroll passthrough to Claude TUI)
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI", "TermLeave" }, {
+	pattern = "*",
+	command = "checktime",
+	desc = "Refresh buffers when external tools (e.g. Claude) edit files",
+})
+require("keymap") -- load keymap.lua
+
+if vim.g.vscode then
+	require("vscode_keymaps")
+	require("cursor.lazy").setup(require("cursor.plugins"))
+	require("cursor.theme").setup_autocmd()
+	return
+end
 
 -- bootstrap lazy.nvim plugin manager
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -27,4 +41,7 @@ end
 
 require("lazy").setup({ {
 	import = "plugins"
-} })
+} }, {
+	rocks = { enabled = false },
+	change_detection = { notify = false },
+})

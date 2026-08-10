@@ -40,6 +40,16 @@ return {
 			desc = "Quickfix List (Trouble)",
 		},
 		{
+			"<leader>xc",
+			"<cmd>ClaudePeek<cr>",
+			desc = "Claude peek (Trouble)",
+		},
+		{
+			"<leader>xt",
+			"<cmd>ClaudeTodos<cr>",
+			desc = "Claude todos (side split)",
+		},
+		{
 			"gd",
 			function()
 				require("trouble").open({ mode = "lsp_definitions" })

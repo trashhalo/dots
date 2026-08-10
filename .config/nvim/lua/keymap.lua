@@ -16,3 +16,6 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, vim.tbl_extend('force', opts
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, vim.tbl_extend('force', opts, { desc = 'Previous diagnostic' }))
 vim.keymap.set('n', '[b', ':bprevious<CR>', vim.tbl_extend('force', opts, { desc = 'previous buffer' }))
 vim.keymap.set('n', ']b', ':bnext<CR>', vim.tbl_extend('force', opts, { desc = 'Next buffer' }))
+
+-- Terminal mode: Esc exits to normal mode (never passes through to terminal)
+vim.keymap.set('t', '<Esc>', [[<C-\><C-n>]], vim.tbl_extend('force', opts, { desc = 'Exit terminal mode' }))

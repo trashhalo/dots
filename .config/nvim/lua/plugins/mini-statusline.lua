@@ -14,12 +14,13 @@ return {
 					})
 					local filename = MiniStatusline.section_filename({ trunc_width = 140 })
 					local fileinfo = MiniStatusline.section_fileinfo({ trunc_width = 120 })
-					local location = MiniStatusline.section_location({ trunc_width = 75 })
 					local lsp = MiniStatusline.section_lsp({
 						trunc_width = 75,
 						icon = '󰒋'
 					})
 					local search = MiniStatusline.section_searchcount({ trunc_width = 75 })
+					local ok_acp, acp_status = pcall(require, "acp.features.statusline")
+					local claude = ok_acp and acp_status.section() or ""
 
 					return MiniStatusline.combine_groups({
 						{ hl = mode_hl,                 strings = { mode } },
@@ -27,8 +28,9 @@ return {
 						'%<', -- Mark general truncate point
 						{ hl = 'MiniStatuslineFilename', strings = { filename } },
 						'%=', -- End left alignment
+						{ hl = 'AcpStatusline',          strings = { claude } },
 						{ hl = 'MiniStatuslineFileinfo', strings = { fileinfo } },
-						{ hl = mode_hl,                  strings = { search, location } },
+						{ hl = mode_hl,                  strings = { search } },
 					})
 				end,
 				inactive = function()
@@ -55,6 +57,7 @@ return {
             highlight MiniStatuslineFilename guifg=#cdd6f4 guibg=#1e1e2e
             highlight MiniStatuslineFileinfo guifg=#cdd6f4 guibg=#313244
             highlight MiniStatuslineInactive guifg=#6c7086 guibg=#1e1e2e
+            highlight AcpStatusline guifg=#fab387 guibg=#313244 gui=bold
         ]])
 	end,
 	dependencies = {

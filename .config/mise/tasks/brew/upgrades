@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Show outdated brew packages that are directly installed (leaves)"
+
+awk 'NR==FNR{leaves[$0]=1; next} ($1 in leaves)' <(brew leaves) <(brew outdated --verbose)

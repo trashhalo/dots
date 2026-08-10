@@ -43,8 +43,12 @@ return {
 			}
 		}
 		lspconfig.ts_ls.setup {}
-		lspconfig.tailwindcss.setup {}
+		lspconfig.tailwindcss.setup {
+			filetypes = { "html", "css", "scss", "javascript", "javascriptreact", "typescript", "typescriptreact", "templ" },
+			init_options = { userLanguages = { templ = "html" } },
+		}
 		lspconfig.terraformls.setup {}
+		lspconfig.templ.setup {}
 
 		-- Use Neovim 0.11's built-in LSP config for ElixirLS
 		vim.lsp.config('elixirls', {

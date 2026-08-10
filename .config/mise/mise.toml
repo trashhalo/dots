@@ -1,0 +1,3 @@
+[tasks."nanobot:chat"]
+description = "Start interactive chat with nanobot"
+run = "docker exec -it nanobot-gateway nanobot agent"

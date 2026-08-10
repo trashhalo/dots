@@ -41,7 +41,6 @@ return {
 		},
 	},
 	opts = {
-		keepFoldsAcrossSessions = false,
 		foldKeymaps = {
 			setup = true, -- enables h, l, $ keymaps
 		},

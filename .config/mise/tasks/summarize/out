@@ -1,0 +1,511 @@
+#!/usr/bin/env -S uv run --script
+#MISE description="Hierarchical text summarization using HDBSCAN clustering and embeddings"
+#MISE alias="hs"
+
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "mlx-lm",
+#   "hdbscan",
+#   "numpy",
+# ]
+# ///
+
+"""
+Hierarchical text summarization using HDBSCAN clustering and embeddings.
+
+Reads JSON from stdin: [{"id": "identifier", "content": "text"}]
+Outputs final summary to stdout.
+
+Uses local MLX models:
+- mlx-community/Qwen3-Embedding-0.6B-4bit-DWQ for embeddings
+- mlx-community/gemma-3n-E4B-it-lm-4bit for summarization
+"""
+
+import sys
+import json
+import os
+import argparse
+from pathlib import Path
+from typing import List, Dict, Tuple, Optional
+import hashlib
+import pickle
+
+# Force unbuffered output
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
+from mlx_lm import load, generate
+import mlx.core as mx
+import hdbscan
+import numpy as np
+
+
+DEFAULT_PROMPT_TEMPLATE = """Summarize the following content concisely. Focus on the key changes, additions, or information.
+
+{context}
+
+Content:
+{content}
+
+Provide a concise summary (2-4 sentences)."""
+
+
+class HierarchicalSummarizer:
+    def __init__(
+        self,
+        embedding_model="mlx-community/Qwen3-Embedding-0.6B-4bit-DWQ",
+        summarize_model="mlx-community/gemma-3n-E4B-it-lm-4bit",
+        prompt_template=None,
+        min_cluster_size=3,
+    ):
+        self.embedding_model_name = embedding_model
+        self.summarize_model_name = summarize_model
+        self.prompt_template = prompt_template or DEFAULT_PROMPT_TEMPLATE
+
+        # Set up cache directory
+        self.cache_dir = Path.home() / "Library" / "Caches" / "hierarchical-summarize"
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.embedding_cache_file = self.cache_dir / "embeddings.pkl"
+
+        # Load embedding cache
+        self.embedding_cache = self._load_cache()
+        self.min_cluster_size = min_cluster_size
+
+        # Lazy load models
+        self._embedding_model = None
+        self._embedding_tokenizer = None
+        self._llm_model = None
+        self._llm_tokenizer = None
+
+    def _load_embedding_model(self):
+        """Lazy load embedding model."""
+        if self._embedding_model is None:
+            print(f"Loading embedding model: {self.embedding_model_name}...", file=sys.stderr)
+            self._embedding_model, self._embedding_tokenizer = load(self.embedding_model_name)
+            print("Embedding model loaded", file=sys.stderr)
+        return self._embedding_model, self._embedding_tokenizer
+
+    def _load_llm_model(self):
+        """Lazy load LLM model."""
+        if self._llm_model is None:
+            print(f"Loading LLM model: {self.summarize_model_name}...", file=sys.stderr)
+            self._llm_model, self._llm_tokenizer = load(self.summarize_model_name)
+            print("LLM model loaded", file=sys.stderr)
+        return self._llm_model, self._llm_tokenizer
+
+    def _load_cache(self) -> Dict[str, np.ndarray]:
+        """Load embedding cache from disk."""
+        if self.embedding_cache_file.exists():
+            try:
+                with open(self.embedding_cache_file, "rb") as f:
+                    cache = pickle.load(f)
+                print(f"Loaded {len(cache)} cached embeddings", file=sys.stderr)
+                return cache
+            except Exception as e:
+                print(f"Warning: Failed to load cache: {e}", file=sys.stderr)
+                return {}
+        return {}
+
+    def _save_cache(self):
+        """Save embedding cache to disk."""
+        try:
+            with open(self.embedding_cache_file, "wb") as f:
+                pickle.dump(self.embedding_cache, f)
+            print(
+                f"Saved {len(self.embedding_cache)} embeddings to cache",
+                file=sys.stderr,
+            )
+        except Exception as e:
+            print(f"Warning: Failed to save cache: {e}", file=sys.stderr)
+
+    def _hash_text(self, text: str) -> str:
+        """Generate a hash for a text to use as cache key."""
+        return hashlib.sha256(text.encode()).hexdigest()
+
+    def _get_embedding(self, text: str) -> np.ndarray:
+        """Get embedding for a single text using MLX model."""
+        model, tokenizer = self._load_embedding_model()
+
+        # Tokenize
+        tokens = tokenizer.encode(text)
+        tokens_array = mx.array([tokens])
+
+        # Get model output
+        output = model(tokens_array)
+
+        # Mean pooling over sequence dimension
+        # output shape is typically [batch_size, seq_len, hidden_size]
+        # We want to pool over seq_len (axis=1)
+        embedding = mx.mean(output, axis=1)
+
+        # Convert MLX array to numpy properly
+        # First convert to list, then to numpy array
+        return np.array(embedding.tolist()).squeeze()
+
+    def embed_texts(self, texts: List[str]) -> np.ndarray:
+        """Embed texts using local MLX model with caching."""
+        if not texts:
+            return np.array([])
+
+        print(f"Embedding {len(texts)} texts...", file=sys.stderr)
+
+        # Check cache for existing embeddings
+        text_hashes = [self._hash_text(text) for text in texts]
+        embeddings = []
+        cache_hits = 0
+
+        for i, (text, text_hash) in enumerate(zip(texts, text_hashes)):
+            if text_hash in self.embedding_cache:
+                embeddings.append(self.embedding_cache[text_hash])
+                cache_hits += 1
+            else:
+                # Generate new embedding
+                embedding = self._get_embedding(text)
+                embeddings.append(embedding)
+                self.embedding_cache[text_hash] = embedding
+
+        print(
+            f"  Found {cache_hits} cached, generated {len(texts) - cache_hits} new embeddings",
+            file=sys.stderr,
+        )
+
+        # Save updated cache
+        if cache_hits < len(texts):
+            self._save_cache()
+
+        return np.array(embeddings)
+
+    def cluster_diffs(
+        self, embeddings: np.ndarray, min_cluster_size: int = 2
+    ) -> np.ndarray:
+        """Cluster embeddings using HDBSCAN."""
+        if len(embeddings) < min_cluster_size:
+            return np.zeros(len(embeddings), dtype=int)
+
+        print(f"Clustering {len(embeddings)} items...", file=sys.stderr)
+        clusterer = hdbscan.HDBSCAN(
+            min_cluster_size=min_cluster_size,
+            min_samples=1,
+            metric="euclidean",
+            cluster_selection_method="eom",
+        )
+        labels = clusterer.fit_predict(embeddings)
+
+        # HDBSCAN uses -1 for noise points, group them into their own clusters
+        unique_labels = set(labels)
+        if -1 in unique_labels:
+            noise_indices = np.where(labels == -1)[0]
+            max_label = max(unique_labels)
+            for i, idx in enumerate(noise_indices):
+                labels[idx] = max_label + 1 + i
+
+        return labels
+
+    def summarize_with_llm(self, content: str, context: str = "") -> str:
+        """Summarize content using local MLX LLM."""
+        model, tokenizer = self._load_llm_model()
+
+        prompt = self.prompt_template.format(content=content, context=context)
+
+        # Apply chat template if available
+        if tokenizer.chat_template is not None:
+            messages = [{"role": "user", "content": prompt}]
+            formatted_prompt = tokenizer.apply_chat_template(
+                messages, add_generation_prompt=True
+            )
+        else:
+            formatted_prompt = prompt
+
+        print(f"  Generating summary (max 500 tokens)...", file=sys.stderr)
+        response = generate(
+            model,
+            tokenizer,
+            prompt=formatted_prompt,
+            max_tokens=500,
+            verbose=True
+        )
+        print(f"  ✓ Summary generated: {len(response)} chars", file=sys.stderr)
+
+        return response
+
+    def hierarchical_summarize(
+        self, items: List[Tuple[str, str]], level: int = 0
+    ) -> str:
+        """
+        Recursively cluster and summarize items.
+
+        Args:
+            items: List of (identifier, content) tuples
+            level: Current recursion level
+
+        Returns:
+            Final summary string
+        """
+        indent = "  " * level
+        print(f"{indent}Level {level}: Processing {len(items)} items...", file=sys.stderr)
+
+        if len(items) == 1:
+            identifier, content = items[0]
+            print(f"{indent}Summarizing single item: {identifier}", file=sys.stderr)
+            summary = self.summarize_with_llm(content, f"Item: {identifier}")
+            return f"{identifier}: {summary}"
+
+        # Extract content for embedding
+        contents = [content for _, content in items]
+        identifiers = [identifier for identifier, _ in items]
+
+        # Embed and cluster
+        embeddings = self.embed_texts(contents)
+        min_cluster_size = max(self.min_cluster_size, len(items) // 10)
+        labels = self.cluster_diffs(embeddings, min_cluster_size=min_cluster_size)
+
+        # Group items by cluster
+        clusters: Dict[int, List[Tuple[str, str]]] = {}
+        for (identifier, content), label in zip(items, labels):
+            if label not in clusters:
+                clusters[label] = []
+            clusters[label].append((identifier, content))
+
+        print(f"{indent}Created {len(clusters)} clusters", file=sys.stderr)
+
+        # Summarize each cluster
+        cluster_summaries = []
+        max_tokens = 180000
+
+        for cluster_id, cluster_items in sorted(clusters.items()):
+            print(
+                f"{indent}Cluster {cluster_id}: {len(cluster_items)} items",
+                file=sys.stderr,
+            )
+
+            if len(cluster_items) == 1:
+                identifier, content = cluster_items[0]
+                summary = self.summarize_with_llm(content, f"Item: {identifier}")
+                cluster_summaries.append((f"Cluster_{cluster_id}_summary", summary))
+            else:
+                total_chars = sum(
+                    len(identifier) + len(content)
+                    for identifier, content in cluster_items
+                )
+                estimated_tokens = int(total_chars / 2.5)
+
+                if estimated_tokens > max_tokens:
+                    print(
+                        f"{indent}  Cluster too large (~{estimated_tokens} tokens), chunking...",
+                        file=sys.stderr,
+                    )
+                    chunk_summaries = []
+                    current_chunk = []
+                    current_chunk_tokens = 0
+                    chunk_num = 0
+
+                    for identifier, content in cluster_items:
+                        item_tokens = int((len(identifier) + len(content)) / 2.5)
+
+                        if item_tokens > max_tokens:
+                            print(
+                                f"{indent}    Warning: {identifier} is ~{item_tokens} tokens, truncating...",
+                                file=sys.stderr,
+                            )
+                            max_chars = int(max_tokens * 2.5)
+                            content = content[:max_chars]
+                            item_tokens = max_tokens
+
+                        if (
+                            current_chunk_tokens + item_tokens > max_tokens
+                            and current_chunk
+                        ):
+                            chunk_num += 1
+                            print(
+                                f"{indent}    Summarizing chunk {chunk_num} ({len(current_chunk)} items, ~{current_chunk_tokens} tokens)...",
+                                file=sys.stderr,
+                            )
+                            chunk_content = "\n\n---\n\n".join(
+                                [f"{id}:\n{c}" for id, c in current_chunk]
+                            )
+                            chunk_summary = self.summarize_with_llm(
+                                chunk_content, f"Chunk with {len(current_chunk)} items"
+                            )
+                            chunk_summaries.append(chunk_summary)
+                            print(
+                                f"{indent}    ✓ Chunk {chunk_num} summarized",
+                                file=sys.stderr,
+                            )
+                            current_chunk = []
+                            current_chunk_tokens = 0
+
+                        current_chunk.append((identifier, content))
+                        current_chunk_tokens += item_tokens
+
+                    if current_chunk:
+                        chunk_num += 1
+                        print(
+                            f"{indent}    Summarizing chunk {chunk_num} ({len(current_chunk)} items, ~{current_chunk_tokens} tokens)...",
+                            file=sys.stderr,
+                        )
+                        chunk_content = "\n\n---\n\n".join(
+                            [f"{id}:\n{c}" for id, c in current_chunk]
+                        )
+                        chunk_summary = self.summarize_with_llm(
+                            chunk_content, f"Chunk with {len(current_chunk)} items"
+                        )
+                        chunk_summaries.append(chunk_summary)
+                        print(
+                            f"{indent}    ✓ Chunk {chunk_num} summarized",
+                            file=sys.stderr,
+                        )
+
+                    print(
+                        f"{indent}  Combining {len(chunk_summaries)} chunk summaries...",
+                        file=sys.stderr,
+                    )
+                    combined_summaries = "\n\n".join(
+                        [f"- {s}" for s in chunk_summaries]
+                    )
+                    final_summary = self.summarize_with_llm(
+                        combined_summaries,
+                        f"Combining {len(chunk_summaries)} chunk summaries",
+                    )
+                    print(
+                        f"{indent}  ✓ Cluster {cluster_id} fully summarized",
+                        file=sys.stderr,
+                    )
+                    cluster_summaries.append(
+                        (f"Cluster_{cluster_id}_summary", final_summary)
+                    )
+                else:
+                    combined_content = "\n\n---\n\n".join(
+                        [f"{identifier}:\n{content}" for identifier, content in cluster_items]
+                    )
+                    summary = self.summarize_with_llm(
+                        combined_content, f"Cluster with {len(cluster_items)} items"
+                    )
+                    cluster_summaries.append((f"Cluster_{cluster_id}_summary", summary))
+
+        print(
+            f"{indent}Created {len(cluster_summaries)} cluster summaries",
+            file=sys.stderr,
+        )
+
+        # Check if clustering would be productive
+        if len(cluster_summaries) <= 3:
+            print(
+                f"{indent}Only {len(cluster_summaries)} summaries, combining directly...",
+                file=sys.stderr,
+            )
+            if len(cluster_summaries) == 1:
+                return cluster_summaries[0][1]
+            combined = "\n\n".join([f"- {summary}" for _, summary in cluster_summaries])
+            return self.summarize_with_llm(
+                combined, f"Final summary of {len(cluster_summaries)} cluster summaries"
+            )
+        elif all(len(clusters[label]) == 1 for label in clusters):
+            print(
+                f"{indent}All {len(clusters)} clusters were single items, combining directly...",
+                file=sys.stderr,
+            )
+            combined = "\n\n".join([f"- {summary}" for _, summary in cluster_summaries])
+            return self.summarize_with_llm(
+                combined, f"Final summary of {len(cluster_summaries)} items"
+            )
+        else:
+            print(
+                f"{indent}Re-clustering {len(cluster_summaries)} summaries...",
+                file=sys.stderr,
+            )
+            return self.hierarchical_summarize(cluster_summaries, level + 1)
+
+    def run(self, items: List[Dict[str, str]]) -> str:
+        """Main entry point."""
+        if not items:
+            return "No items to summarize."
+
+        print(f"Processing {len(items)} items", file=sys.stderr)
+
+        # Convert to internal format
+        item_tuples = [(item["id"], item["content"]) for item in items]
+
+        print("\nStarting hierarchical summarization...\n", file=sys.stderr)
+
+        # Run hierarchical summarization
+        final_summary = self.hierarchical_summarize(item_tuples)
+
+        print("\n" + "=" * 80, file=sys.stderr)
+        print("FINAL SUMMARY:", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(final_summary, file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+
+        return final_summary
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Hierarchical text summarization using clustering and embeddings"
+    )
+    parser.add_argument(
+        "--embedding-model",
+        type=str,
+        default="mlx-community/Qwen3-Embedding-0.6B-4bit-DWQ",
+        help="MLX embedding model to use (default: mlx-community/Qwen3-Embedding-0.6B-4bit-DWQ)",
+    )
+    parser.add_argument(
+        "--summarize-model",
+        type=str,
+        default="mlx-community/gemma-3n-E4B-it-lm-4bit",
+        help="MLX LLM model for summarization (default: mlx-community/gemma-3n-E4B-it-lm-4bit)",
+    )
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        help="Custom prompt template (use {content} and {context} placeholders)",
+    )
+    parser.add_argument(
+        "--prompt-file",
+        type=str,
+        help="Path to file containing prompt template",
+    )
+    parser.add_argument(
+        "--min-cluster-size",
+        type=int,
+        default=3,
+        help="Minimum cluster size for HDBSCAN (default: 3)",
+    )
+
+    args = parser.parse_args()
+
+    # Load prompt template if specified
+    prompt_template = None
+    if args.prompt_file:
+        with open(args.prompt_file, "r") as f:
+            prompt_template = f.read()
+    elif args.prompt:
+        prompt_template = args.prompt
+
+    # Read JSON from stdin
+    try:
+        items = json.load(sys.stdin)
+        if not isinstance(items, list):
+            print("Error: Input must be a JSON array", file=sys.stderr)
+            sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Create summarizer and run
+    summarizer = HierarchicalSummarizer(
+        embedding_model=args.embedding_model,
+        summarize_model=args.summarize_model,
+        prompt_template=prompt_template,
+        min_cluster_size=args.min_cluster_size,
+    )
+
+    final_summary = summarizer.run(items)
+
+    # Output final summary to stdout
+    print(final_summary)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+#MISE description="Extract emails from macOS Mail and format as JSON for hierarchical-summarize"
+#MISE alias="em"
+
+"""
+Extract emails from macOS Mail (~/Library/Mail) and format as JSON.
+
+Usage:
+  extract-mail [limit]          # Extract last N emails (default: 50)
+  extract-mail 20 | hierarchical-summarize
+"""
+
+import os
+import email
+import json
+import sys
+from pathlib import Path
+import argparse
+
+
+def find_emlx_files(mail_dir, limit=50, mailbox_filter=None):
+    """Find .emlx email files"""
+    mail_path = Path(mail_dir).expanduser()
+
+    if mailbox_filter:
+        # Filter by mailbox name
+        pattern = f"**/{mailbox_filter}.mbox/**/*.emlx"
+    else:
+        pattern = "**/*.emlx"
+
+    # Get all files and sort by modification time (most recent first)
+    emlx_files = sorted(
+        mail_path.glob(pattern),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True
+    )[:limit]
+
+    return emlx_files
+
+
+def parse_emlx(filepath):
+    """Parse .emlx file (first line is byte count, rest is email)"""
+    with open(filepath, 'rb') as f:
+        lines = f.readlines()
+        # Skip first line (byte count)
+        email_content = b''.join(lines[1:])
+        msg = email.message_from_bytes(email_content)
+
+        # Extract body
+        body = ""
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_type() == "text/plain":
+                    try:
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            body = payload.decode(errors='ignore')
+                            break
+                    except:
+                        continue
+                elif not body and part.get_content_type() == "text/html":
+                    # Fallback to HTML if no plain text
+                    try:
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            body = payload.decode(errors='ignore')
+                    except:
+                        continue
+        else:
+            try:
+                payload = msg.get_payload(decode=True)
+                if payload:
+                    body = payload.decode(errors='ignore')
+                else:
+                    body = str(msg.get_payload())
+            except:
+                body = str(msg.get_payload())
+
+        return {
+            "subject": msg.get('Subject', 'No Subject'),
+            "from": msg.get('From', 'Unknown'),
+            "to": msg.get('To', 'Unknown'),
+            "date": msg.get('Date', 'Unknown'),
+            "body": body
+        }
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Extract emails from macOS Mail and format as JSON"
+    )
+    parser.add_argument(
+        "limit",
+        type=int,
+        nargs='?',
+        default=50,
+        help="Number of emails to extract (default: 50)"
+    )
+    parser.add_argument(
+        "--mailbox",
+        type=str,
+        help="Filter by mailbox name (e.g., INBOX, Sent)"
+    )
+    parser.add_argument(
+        "--mail-dir",
+        type=str,
+        default="~/Library/Mail/V10",
+        help="Mail directory path (default: ~/Library/Mail/V10)"
+    )
+    parser.add_argument(
+        "--max-body-length",
+        type=int,
+        default=2000,
+        help="Maximum body length to include (default: 2000 chars)"
+    )
+
+    args = parser.parse_args()
+
+    mail_dir = Path(args.mail_dir).expanduser()
+
+    if not mail_dir.exists():
+        print(f"Error: Mail directory not found: {mail_dir}", file=sys.stderr)
+        print("Try checking: ls ~/Library/Mail/", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Searching for emails in {mail_dir}...", file=sys.stderr)
+
+    emlx_files = find_emlx_files(
+        mail_dir,
+        limit=args.limit,
+        mailbox_filter=args.mailbox
+    )
+
+    if not emlx_files:
+        print("No emails found", file=sys.stderr)
+        if args.mailbox:
+            print(f"Mailbox filter: {args.mailbox}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Found {len(emlx_files)} emails, parsing...", file=sys.stderr)
+
+    emails = []
+    for i, filepath in enumerate(emlx_files):
+        try:
+            email_data = parse_emlx(filepath)
+
+            # Truncate body
+            body = email_data['body'][:args.max_body_length]
+            if len(email_data['body']) > args.max_body_length:
+                body += "\n[...truncated]"
+
+            emails.append({
+                "id": f"email-{i+1}: {email_data['subject'][:50]}",
+                "content": f"Subject: {email_data['subject']}\nFrom: {email_data['from']}\nTo: {email_data['to']}\nDate: {email_data['date']}\n\n{body}"
+            })
+
+            if (i + 1) % 10 == 0:
+                print(f"  Parsed {i + 1}/{len(emlx_files)}...", file=sys.stderr)
+        except Exception as e:
+            print(f"Error parsing {filepath}: {e}", file=sys.stderr)
+            continue
+
+    print(f"Successfully parsed {len(emails)} emails", file=sys.stderr)
+    print(f"Output: JSON array with {len(emails)} items", file=sys.stderr)
+
+    # Output JSON to stdout
+    json.dump(emails, sys.stdout, indent=2)
+
+
+if __name__ == '__main__':
+    main()

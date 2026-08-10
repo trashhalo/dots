@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#MISE description="Show what changed in a brew package between installed and latest version"
+#USAGE arg "<package>" help="The brew package to check changelog for"
+
+trap 'kill -- -$$ 2>/dev/null; exit 130' INT TERM
+
+{ claude -p "/brew-changelog $1" --allowed-tools "Bash,WebFetch" \
+  --output-format stream-json --include-partial-messages --verbose \
+  | uv run --with rich python3 -c "
+import sys, json
+from rich.console import Console
+from rich.text import Text
+
+console = Console()
+tool, buf = None, ''
+
+for line in sys.stdin:
+    try: obj = json.loads(line.strip())
+    except: continue
+    if obj.get('type') != 'stream_event': continue
+    e = obj['event']
+    t = e.get('type')
+    if t == 'content_block_start':
+        cb = e.get('content_block', {})
+        if cb.get('type') == 'tool_use':
+            tool, buf = cb['name'], ''
+    elif t == 'content_block_delta':
+        d = e.get('delta', {})
+        if d.get('type') == 'input_json_delta':
+            buf += d.get('partial_json', '')
+        elif d.get('type') == 'text_delta':
+            print(d.get('text', ''), end='', flush=True)
+    elif t == 'content_block_stop' and tool:
+        try:
+            cmd = json.loads(buf).get('command', buf) if tool == 'Bash' else buf
+        except:
+            cmd = buf
+        console.print(Text(f'\n[{tool}] {cmd}', style='dim'))
+        tool, buf = None, ''
+
+print()
+"; } &
+
+wait $!

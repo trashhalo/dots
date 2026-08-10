@@ -1,9 +1,34 @@
 {
+  "agent_servers": {
+    "codex-acp": {
+      "default_config_options": {
+        "model": "gpt-5.6-luna"
+      },
+      "type": "registry"
+    }
+  },
+  "project_panel": {
+    "dock": "right"
+  },
+  "outline_panel": {
+    "dock": "right"
+  },
+  "collaboration_panel": {
+    "dock": "right"
+  },
+  "git_panel": {
+    "dock": "right"
+  },
   "agent": {
-    "always_allow_tool_actions": true,
+    "tool_permissions": {
+      "default": "allow"
+    },
+    "dock": "left",
     "default_model": {
-      "provider": "anthropic",
-      "model": "claude-sonnet-4-5-latest",
+      "effort": "medium",
+      "enable_thinking": true,
+      "provider": "openai-subscribed",
+      "model": "gpt-5.6-terra",
     },
     "model_parameters": [],
   },

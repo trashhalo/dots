@@ -85,6 +85,12 @@ return {
 	priority = 1000,
 	opts = function(_, opts)
 		return vim.tbl_deep_extend("force", opts or {}, {
+			notifier = {
+				enabled = true,
+				timeout = 4000,
+				style = "compact",
+				top_down = false,
+			},
 			words = {
 			},
 			picker = {
@@ -120,6 +126,19 @@ return {
 								end,
 								mode = { "n", "i" },
 								desc = "Vertical split and stay",
+							},
+							["<C-y>"] = {
+								function(picker)
+									local items = picker:selected({ fallback = true })
+									for _, item in ipairs(items) do
+										if item.file then
+											vim.cmd("ClaudeCodeAdd " .. vim.fn.fnameescape(item.file))
+										end
+									end
+									picker:close()
+								end,
+								mode = { "n", "i" },
+								desc = "Send to Claude Code",
 							},
 						},
 					},
@@ -160,7 +179,12 @@ return {
 				desc = "Jump to Method"
 			},
 			{ "<leader>jw",  function() snacks.picker.lsp_workspace_symbols() end, desc = "Jump to Workspace Symbol" },
-			{ "<leader>jc",  function() snacks.picker.commands() end,              desc = "Jump to Command" },
+			-- ACP pickers — all under `<leader>jc*` (the Claude/ACP picker group).
+			{ "<leader>jcp", function() require("acp.features.peek").pick() end,       desc = "ACP: tool-use peek" },
+			{ "<leader>jcd", function() snacks.picker.diagnostics({ filter = { source = "acp" } }) end, desc = "ACP: diagnostics" },
+			{ "<leader>jce", function() require("acp.features.edit_marks").pick() end, desc = "ACP: edits (live positions)" },
+			{ "<leader>jcr", function() require("acp.chat").pick_session() end,        desc = "ACP: resume session" },
+			{ "<leader>jct", function() require("acp.features.todos").toggle() end,    desc = "ACP: toggle todos" },
 			{ "<leader>jg",  function() snacks.picker.grep({ live = true }) end,   desc = "Jump to Text (Grep)" },
 			{ "<leader>jr",  function() snacks.picker.recent() end,                desc = "Jump to Recent" },
 			{ "<leader>jh",  function() snacks.picker.help() end,                  desc = "Jump to Help" },
@@ -182,6 +206,9 @@ return {
 			{ "gd",          function() snacks.picker.lsp_definitions() end,       desc = "Goto Definition" },
 			{ "gr",          function() snacks.picker.lsp_references() end,        desc = "Goto References" },
 			{ "gI",          function() snacks.picker.lsp_implementations() end,   desc = "Goto Implementation" },
+
+			-- Window
+			{ "<C-w>z",      function() snacks.zen.zoom() end,                     desc = "Zoom window" },
 		}
 	end,
 	init = function()

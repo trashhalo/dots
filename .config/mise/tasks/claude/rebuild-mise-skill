@@ -1,0 +1,177 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# dependencies = []
+# ///
+#MISE description="Rebuild mise skill from latest GitHub docs"
+"""
+Rebuild the mise Claude Code skill by cloning the latest docs from GitHub,
+fixing markdown links to be relative paths, and setting up the skill directory.
+"""
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+def get_relative_path(from_file: Path, to_path: str, docs_root: Path) -> str:
+    """Convert an absolute doc path to a relative path."""
+    # Split path and anchor/fragment
+    anchor = ''
+    if '#' in to_path:
+        to_path, anchor = to_path.split('#', 1)
+        anchor = '#' + anchor
+
+    # Remove leading slash
+    to_path = to_path.lstrip('/')
+
+    # Convert .html to .md
+    if to_path.endswith('.html'):
+        to_path = to_path[:-5] + '.md'
+
+    # Handle trailing slashes - might be a directory
+    if to_path.endswith('/'):
+        to_path = to_path.rstrip('/')
+        target_dir = docs_root / to_path
+        if target_dir.is_dir():
+            if (target_dir / 'index.md').exists():
+                to_path = str(Path(to_path) / 'index.md')
+    else:
+        # If no extension, add .md
+        if not to_path.endswith('.md'):
+            if (docs_root / (to_path + '.md')).exists():
+                to_path = to_path + '.md'
+            elif (docs_root / to_path).is_dir() and (docs_root / to_path / 'index.md').exists():
+                to_path = str(Path(to_path) / 'index.md')
+            else:
+                to_path = to_path + '.md'
+
+    # Get absolute path to target
+    target_abs = docs_root / to_path
+
+    # Get the directory containing the current file
+    from_dir = from_file.parent
+
+    # Calculate relative path
+    try:
+        rel_path = os.path.relpath(target_abs, from_dir)
+        if not rel_path.startswith('..'):
+            rel_path = './' + rel_path
+        return rel_path + anchor
+    except ValueError:
+        return to_path + anchor
+
+
+def fix_links_in_file(file_path: Path, docs_root: Path) -> bool:
+    """Fix all absolute links in a markdown file."""
+    content = file_path.read_text(encoding='utf-8')
+
+    # Pattern to match markdown links with absolute paths
+    pattern = r'\[([^\]]+)\]\((/[^)]+)\)'
+
+    def replace_link(match):
+        text = match.group(1)
+        path = match.group(2)
+
+        # Skip external links and anchors
+        if '://' in path or path.startswith('/#'):
+            return match.group(0)
+
+        rel_path = get_relative_path(file_path, path, docs_root)
+        return f'[{text}]({rel_path})'
+
+    new_content = re.sub(pattern, replace_link, content)
+
+    if new_content != content:
+        file_path.write_text(new_content, encoding='utf-8')
+        return True
+    return False
+
+
+def main():
+    """Main entry point."""
+    home = Path.home()
+    skill_dir = home / '.claude' / 'skills' / 'mise'
+    repo_url = 'https://github.com/jdx/mise.git'
+
+    # Create temp directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        repo_path = temp_path / 'mise'
+        docs_path = repo_path / 'docs'
+
+        # Clone repo
+        print('→ Cloning mise repo...')
+        result = subprocess.run(
+            ['git', 'clone', '--depth', '1', repo_url, str(repo_path)],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            print(f'Error cloning repo: {result.stderr}', file=sys.stderr)
+            sys.exit(1)
+
+        # Fix markdown links
+        print('→ Fixing markdown links...')
+        md_files = list(docs_path.rglob('*.md'))
+        fixed_count = sum(1 for f in md_files if fix_links_in_file(f, docs_path))
+        print(f'  Fixed links in {fixed_count} files')
+
+        # Set up skill directory
+        print('→ Setting up skill directory...')
+        if skill_dir.exists():
+            shutil.rmtree(skill_dir)
+        skill_dir.mkdir(parents=True)
+
+        # Copy docs
+        print('→ Copying docs...')
+        for item in docs_path.iterdir():
+            if item.is_file():
+                shutil.copy2(item, skill_dir / item.name)
+            elif item.is_dir():
+                shutil.copytree(item, skill_dir / item.name)
+
+        # Create SKILL.md
+        print('→ Creating SKILL.md...')
+        skill_md = skill_dir / 'SKILL.md'
+        skill_md.write_text('''---
+name: mise
+description: Expert knowledge of mise - a polyglot tool version manager and task runner. Use ANY TIME you're creating or editing mise.toml, .mise.toml, mise task files, or working with mise configuration, backends, plugins, environments, or debugging mise issues.
+---
+
+# Mise
+
+This skill provides comprehensive documentation for mise, a polyglot tool version manager and task runner.
+
+## When to Use
+
+Use this skill when:
+- Working with mise configuration files (mise.toml, .mise.toml)
+- Managing development tool versions
+- Creating or debugging mise tasks
+- Setting up environments or working with mise hooks
+- Understanding mise backends and plugins
+- Integrating mise with CI/CD
+
+## Core Capabilities
+
+- Tool version management for multiple languages
+- Task runner with dependencies and parallelization
+- Environment variable management
+- Configuration templating
+- IDE integration support
+
+## Documentation
+
+This skill contains the complete mise documentation, automatically synced from the official GitHub repository.
+
+**To update:** Run `mise run claude:rebuild-mise-skill` to fetch the latest docs.
+''')
+
+    print(f'✓ Mise skill rebuilt successfully at {skill_dir}')
+
+
+if __name__ == '__main__':
+    main()

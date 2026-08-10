@@ -1,6 +1,8 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 palette = "gruvbox" # !! This feature depends on `starship` >= v1.11.0
 
+format = "$kubernetes$directory$git_branch$git_state$git_status$aws${custom.aws_sso}$terraform$line_break$character"
+
 [kubernetes]
 symbol = "⛵ "
 disabled = false
@@ -21,11 +23,26 @@ disabled = true
 [python]
 disabled = true
 [gcloud]
-symbol = "☁️  "
-format = '[$symbol($account)@($project)]($style) '
-[gcloud.project_aliases]
-"standd-prod" = "prod"
-"standd-staging" = "staging"
+disabled = true
+[aws]
+format = 'on [$symbol$profile]($style) '
+style = 'bold yellow'
+symbol = '☁️ '
+
+[custom.aws_sso]
+command = 'find ~/.aws/sso/cache -name "*.json" -mmin -480 2>/dev/null | grep -q . && echo "✓" || echo "🟧❌ sso login"'
+when = "true"
+format = " $output"
+style = "bold yellow"
+[git_branch]
+disabled = false
+[git_status]
+disabled = false
+[git_state]
+disabled = false
+[terraform]
+disabled = false
+format = 'via [$symbol$workspace]($style) '
 [palettes.24Bit] #Color palette
      col_black="#0A0400" # -- Text inverse
        col_red="#D61E1C" # -- Error/Attention
