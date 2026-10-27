@@ -1,3 +1,4 @@
 #!/bin/bash
-curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to $(pwd)
-./just install
+curl https://mise.run | sh
+"$HOME/.local/bin/mise" trust
+"$HOME/.local/bin/mise" run install

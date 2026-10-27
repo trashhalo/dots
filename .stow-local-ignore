@@ -1,1 +1,10 @@
 .aider.chat.history.md
+^/install\.sh$
+^/mise\.toml$
+^/\.stow-local-ignore$
+^/neovim
+^/elixir-ls
+^/lua-
+^/\.git$
+^/\.gitignore$
+^/\.gitmodules$
